@@ -1,0 +1,15 @@
+{
+  "name": "Shoot Tracker",
+  "short_name": "Shoots",
+  "description": "Organise and track your social media shoots",
+  "start_url": "/shoot-tracker/",
+  "scope": "/shoot-tracker/",
+  "display": "standalone",
+  "background_color": "#F7F2EA",
+  "theme_color": "#C17837",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
