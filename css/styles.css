@@ -242,8 +242,9 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   background: var(--terracotta);
   color: #fff;
   border: none;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 300;
+  padding-bottom: 2px;
   box-shadow: 0 4px 16px rgba(193,120,55,.35);
   cursor: pointer;
   z-index: 40;
