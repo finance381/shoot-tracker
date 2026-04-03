@@ -20,7 +20,9 @@ async function init() {
   if (user && getMember()) {
     showApp();
   } else if (user && !getMember()) {
-    showAuthError('Your email hasn\'t been added to the team yet. Contact your admin.');
+    // Stale session with no team membership — sign out and show clean login
+    await logout();
+    showAuth();
   } else {
     showAuth();
   }
@@ -68,10 +70,16 @@ function showAuth() {
       } else {
         await login(phone, pass);
       }
-      // Re-init to load member profile
       await initAuth();
-      if (getMember()) showApp();
-      else showAuthError('Your email hasn\'t been added to the team yet. Contact your admin.');
+      if (getMember()) {
+        showApp();
+      } else {
+        await logout();
+        errorEl.textContent = 'This phone number hasn\'t been added to the team yet. Ask your admin to add you first.';
+        errorEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+      }
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');
