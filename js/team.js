@@ -109,7 +109,6 @@ function openTeamModal(member = null) {
   overlay.querySelector('#tm-save').addEventListener('click', async () => {
     const name  = overlay.querySelector('#tm-name').value.trim();
     const role  = overlay.querySelector('#tm-role').value.trim();
-    const email = overlay.querySelector('#tm-email').value.trim();
     const phone = overlay.querySelector('#tm-phone').value.trim();
     const errEl = overlay.querySelector('#tm-error');
 
@@ -119,64 +118,78 @@ function openTeamModal(member = null) {
       return;
     }
 
+    const saveBtn = overlay.querySelector('#tm-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
     try {
       if (isEdit) {
-        await supabase.from('team_members').update({ name, role, phone }).eq('id', member.id);
+        const { error } = await supabase.from('team_members').update({ name, role, phone }).eq('id', member.id);
+        if (error) throw error;
+        close();
+        render();
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Member updated' }));
       } else {
         const pass = overlay.querySelector('#tm-pass').value;
         if (!pass || pass.length < 6) {
           errEl.textContent = 'Password must be at least 6 characters';
           errEl.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Add & Create Login';
           return;
         }
 
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        // Step 1: Insert row FIRST while admin session is active
-        const { data: newRow, error: insertErr } = await supabase
-          .from('team_members')
-          .insert({ name, role, email: fakeEmail, phone, is_admin: false })
-          .select()
-          .single();
-
-        if (insertErr) throw insertErr;
-
-        // Step 2: Save admin tokens before signUp hijacks session
+        // Step 1: Save admin tokens
         const { data: { session: adminSession } } = await supabase.auth.getSession();
         const adminTokens = {
           access_token: adminSession.access_token,
           refresh_token: adminSession.refresh_token
         };
 
-        // Step 3: Create auth account (switches session away from admin)
+        // Step 2: Create auth account (this switches session)
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: fakeEmail, password: pass,
           options: { data: { name, phone } }
         });
+        if (signUpErr) throw signUpErr;
 
-        // Step 4: Restore admin session
+        // Step 3: Restore admin session
         await supabase.auth.setSession(adminTokens);
+        // Wait for session to settle
+        await new Promise(r => setTimeout(r, 500));
 
-        // Step 5: Link auth_id if signup succeeded
-        if (!signUpErr && signUpData?.user?.id) {
-          await supabase
-            .from('team_members')
-            .update({ auth_id: signUpData.user.id })
-            .eq('id', newRow.id);
+        // Step 4: Insert team member row
+        const { error: insertErr } = await supabase.from('team_members').insert({
+          auth_id: signUpData.user?.id || null,
+          name, role, email: fakeEmail, phone,
+          is_admin: false
+        });
+
+        // If insert fails due to session, try once more
+        if (insertErr) {
+          await supabase.auth.setSession(adminTokens);
+          await new Promise(r => setTimeout(r, 500));
+          const { error: retryErr } = await supabase.from('team_members').insert({
+            auth_id: signUpData.user?.id || null,
+            name, role, email: fakeEmail, phone,
+            is_admin: false
+          });
+          if (retryErr) throw retryErr;
         }
 
         close();
         render();
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Member added — they can log in now' }));
-        return;
       }
-      close();
-      render();
     } catch (err) {
+      console.error('Save member error:', err);
       errEl.textContent = err.message || 'Something went wrong';
       errEl.classList.remove('hidden');
+      saveBtn.disabled = false;
+      saveBtn.textContent = isEdit ? 'Save' : 'Add & Create Login';
     }
   });
 
