@@ -109,6 +109,7 @@ function showApp() {
   setupNav();
   setupFab();
   setupLogout();
+  setupChangePassword();
   setupShootModal();
   setupToast();
   setupReminders();
@@ -146,6 +147,69 @@ function setupLogout() {
   });
 }
 
+function setupChangePassword() {
+  document.getElementById('btn-change-pw').addEventListener('click', () => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="border-radius:20px 20px 0 0;">
+        <div class="modal-header">
+          <h2>Change Password</h2>
+          <button class="btn-icon" id="pw-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>New password</label>
+            <input type="password" id="pw-new" placeholder="Min 6 characters">
+          </div>
+          <div class="form-group">
+            <label>Confirm password</label>
+            <input type="password" id="pw-confirm" placeholder="Re-enter password">
+          </div>
+          <div id="pw-error" class="auth-error hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <span class="spacer"></span>
+          <button class="btn-secondary" id="pw-cancel">Cancel</button>
+          <button class="btn-primary" id="pw-save">Update</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('#pw-close').addEventListener('click', close);
+    overlay.querySelector('#pw-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#pw-save').addEventListener('click', async () => {
+      const newPw = overlay.querySelector('#pw-new').value;
+      const confirmPw = overlay.querySelector('#pw-confirm').value;
+      const errEl = overlay.querySelector('#pw-error');
+
+      if (!newPw || newPw.length < 6) {
+        errEl.textContent = 'Password must be at least 6 characters';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (newPw !== confirmPw) {
+        errEl.textContent = 'Passwords don\'t match';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPw });
+        if (error) throw error;
+        close();
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Password updated' }));
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    });
+  });
+}
 // ===== SHOOT MODAL =====
 function setupShootModal() {
   const overlay = document.getElementById('shoot-modal');
