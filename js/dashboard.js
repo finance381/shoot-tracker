@@ -5,6 +5,7 @@ const container = () => document.getElementById('page-dashboard');
 
 export async function render() {
   const el = container();
+  el.innerHTML = '<div class="page-loader"><div class="skeleton-grid"><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
   const today = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 

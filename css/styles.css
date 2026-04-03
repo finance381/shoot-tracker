@@ -851,4 +851,56 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   cursor: pointer;
   font-family: var(--font);
 }
+/* ========== SKELETON LOADER ========== */
+.page-loader { padding: 0; }
+.skeleton-card {
+  height: 72px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--sand) 25%, var(--sand-dark) 50%, var(--sand) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 10px;
+}
+.skeleton-card.short { height: 48px; }
+.skeleton-card.stat { height: 88px; }
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+/* ========== PULL TO REFRESH ========== */
+.pull-refresh {
+  position: fixed;
+  top: var(--top-h);
+  left: 0; right: 0;
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terracotta);
+  background: var(--cream);
+  transform: translateY(-100%);
+  transition: transform .2s;
+  z-index: 45;
+}
+.pull-refresh.visible {
+  transform: translateY(0);
+}
+.pull-refresh.refreshing {
+  transform: translateY(0);
+}
+.pull-refresh.refreshing span::after {
+  content: ' Refreshing…';
+}
+.pull-refresh.refreshing span {
+  font-size: 0;
+}
+.pull-refresh.refreshing span::after {
+  font-size: 13px;
+}
 </style>

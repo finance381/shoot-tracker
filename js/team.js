@@ -10,6 +10,10 @@ export async function render() {
   if (!el) return;
 
   try {
+    if (!el.querySelector('.team-card') && !el.querySelector('.masters-section')) {
+      el.innerHTML = '<div class="page-loader"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+    }
+
     const { data: members, error } = await supabase
       .from('team_members')
       .select('*')
@@ -170,6 +174,7 @@ function openTeamModal(member = null) {
 
   const overlay = document.createElement('div');
   overlay.id = 'team-modal';
+  overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal" style="border-radius:20px 20px 0 0;">
       <div class="modal-header">

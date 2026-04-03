@@ -10,6 +10,9 @@ const container = () => document.getElementById('page-calendar');
 
 export async function render() {
   const el = container();
+  if (!el.querySelector('.cal-grid')) {
+    el.innerHTML = '<div class="page-loader"><div class="skeleton-card short"></div><div class="skeleton-card" style="height:300px"></div></div>';
+  }
   const { data: shoots } = await supabase.from('shoots').select('id, date, status, type, client');
   const all = shoots || [];
 

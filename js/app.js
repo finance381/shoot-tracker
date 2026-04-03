@@ -159,6 +159,7 @@ function showApp() {
   setupReminders();
   registerSW();
   setupAutoRefresh();
+  setupPullToRefresh();
 }
 
 // ===== NAVIGATION =====
@@ -498,6 +499,46 @@ function registerSW() {
       });
     });
   }).catch(console.error);
+}
+function setupPullToRefresh() {
+  const main = document.getElementById('main-content');
+  const indicator = document.getElementById('pull-refresh');
+  if (!main || !indicator) return;
+
+  let startY = 0;
+  let pulling = false;
+
+  main.addEventListener('touchstart', (e) => {
+    if (main.scrollTop === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  main.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 30 && main.scrollTop === 0) {
+      indicator.classList.add('visible');
+    } else {
+      indicator.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  main.addEventListener('touchend', async () => {
+    if (!pulling) return;
+    pulling = false;
+    if (indicator.classList.contains('visible')) {
+      indicator.classList.remove('visible');
+      indicator.classList.add('refreshing');
+      indicator.querySelector('span').textContent = '';
+      await pages[currentPage]();
+      setTimeout(() => {
+        indicator.classList.remove('refreshing');
+        indicator.querySelector('span').textContent = '↻ Release to refresh';
+      }, 500);
+    }
+  });
 }
 
 // ===== BOOT =====

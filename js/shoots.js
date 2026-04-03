@@ -11,6 +11,9 @@ const container = () => document.getElementById('page-shoots');
 
 export async function render() {
   const el = container();
+  if (!el.querySelector('.filter-bar')) {
+    el.innerHTML = '<div class="page-loader"><div class="skeleton-card short"></div><div class="skeleton-card short"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+  }
 
   const [shootsRes, teamRes] = await Promise.all([
     supabase.from('shoots').select('*').order('date', { ascending: true }),
