@@ -76,7 +76,7 @@ export async function render() {
       : upcoming.map(s => `
         <div class="shoot-card ${me && s.assignee_id === me.id ? 'shoot-mine' : ''} border-${s.status}" data-id="${s.id}">
           <div class="shoot-info">
-            <div class="shoot-title">${s.client || 'No client'}</div>
+            <div class="shoot-title">${s.client || 'No function'}</div>
             <div class="shoot-meta">${s.date}${s.time ? ' at ' + fmtTime(s.time) : ''}${renderLocation(s) ? ' · ' + renderLocation(s) : ''}</div>
             ${renderTags(s)}
           </div>

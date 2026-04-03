@@ -387,6 +387,35 @@ function setupShootModal() {
       });
     }
 
+    // Load audit log for edit mode
+    if (isEdit) {
+      const { data: logs } = await supabase
+        .from('audit_log')
+        .select('*')
+        .eq('shoot_id', shoot.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const logContainer = document.getElementById('s-audit-log');
+      if (logContainer && logs?.length) {
+        logContainer.innerHTML = `
+          <label>Activity Log</label>
+          <div class="audit-log-list">
+            ${logs.map(l => {
+              const time = new Date(l.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+              return `<div class="audit-row">
+                <span class="audit-who">${l.member_name}</span>
+                <span class="audit-what">${l.type_name}: ${l.from_status} → ${l.to_status}</span>
+                <span class="audit-when">${time}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        `;
+      } else if (logContainer) {
+        logContainer.innerHTML = '';
+      }
+    }
+
     overlay.classList.remove('hidden');
   }
 
@@ -449,6 +478,24 @@ function setupShootModal() {
 
     if (editingShoot) {
       await supabase.from('shoots').update(row).eq('id', editingShoot.id);
+
+      // Log any type status changes
+      const oldTS = editingShoot.type_statuses || {};
+      const newTS = type_statuses || {};
+      const me = getMember();
+      for (const t of Object.keys(newTS)) {
+        if (oldTS[t] && oldTS[t] !== newTS[t]) {
+          await supabase.from('audit_log').insert({
+            shoot_id: editingShoot.id,
+            member_id: me?.id,
+            member_name: me?.name || 'Unknown',
+            type_name: t,
+            from_status: oldTS[t],
+            to_status: newTS[t]
+          });
+        }
+      }
+
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot updated' }));
     } else {
       row.created_by = getMember()?.id || null;

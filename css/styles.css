@@ -1075,4 +1075,35 @@ body { background: var(--cream); }
   justify-content: center;
   flex-shrink: 0;
 }
+/* ========== AUDIT LOG ========== */
+.audit-log-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.audit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--cream);
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+}
+.audit-who {
+  font-weight: 700;
+  color: var(--espresso);
+  flex-shrink: 0;
+}
+.audit-what {
+  flex: 1;
+  color: var(--bark);
+}
+.audit-when {
+  font-size: 11px;
+  color: var(--stone);
+  flex-shrink: 0;
+}
 </style>

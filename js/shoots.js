@@ -1,6 +1,19 @@
 import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
 
+async function logStatusChange(shootId, typeName, fromStatus, toStatus) {
+  const me = getMember();
+  if (!me) return;
+  await supabase.from('audit_log').insert({
+    shoot_id: shootId,
+    member_id: me.id,
+    member_name: me.name,
+    type_name: typeName,
+    from_status: fromStatus,
+    to_status: toStatus
+  });
+}
+
 const STATUSES = ['Planned', 'Shot', 'Edited', 'Posted'];
 const STATUS_ORDER = ['Planned', 'Shot', 'Edited', 'Posted'];
 
@@ -149,6 +162,7 @@ function renderDateGrouped(el, filtered, allShoots, me) {
       const shoot = allShoots.find(s => s.id === shootId);
       if (!shoot) return;
 
+      const oldStatus = shoot.type_statuses[typeName];
       const updatedTS = { ...shoot.type_statuses, [typeName]: newStatus };
       const overallStatus = STATUS_ORDER[Math.min(...Object.values(updatedTS).map(st => STATUS_ORDER.indexOf(st)))];
 
@@ -156,6 +170,8 @@ function renderDateGrouped(el, filtered, allShoots, me) {
         type_statuses: updatedTS,
         status: overallStatus
       }).eq('id', shootId);
+
+      await logStatusChange(shootId, typeName, oldStatus, newStatus);
 
       shoot.type_statuses = updatedTS;
       shoot.status = overallStatus;
@@ -190,7 +206,7 @@ function renderShootCard(s, me) {
       <div class="shoot-info">
         <div class="shoot-card-top">
           <div>
-            <div class="shoot-title">${s.client || 'No client'}</div>
+            <div class="shoot-title">${s.client || 'No function'}</div>
             <div class="shoot-meta">${s.time ? fmtTime(s.time) : 'No time'}${loc ? ' · ' + loc : ''}</div>
           </div>
           <div class="shoot-card-right">
