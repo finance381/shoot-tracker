@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shoot-tracker-v1';
+const CACHE_NAME = 'shoot-tracker-v3';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -32,14 +32,17 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Network-first for Supabase API calls
-  if (url.hostname.includes('supabase')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-    return;
-  }
+  // Skip non-GET and Supabase API calls
+  if (e.request.method !== 'GET' || url.hostname.includes('supabase')) return;
 
-  // Cache-first for app shell
+  // Network-first: try fresh, fall back to cache (offline support)
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

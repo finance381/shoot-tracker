@@ -35,6 +35,7 @@ async function loadMember() {
     currentMember = data;
   } else {
     // Check if invited by email (auth_id not yet linked)
+    if (!currentUser?.email) return;
     const { data: byEmail } = await supabase
       .from('team_members')
       .select('*')

@@ -35,8 +35,13 @@ function showAuth() {
 
   const submitBtn  = document.getElementById('auth-submit');
   const errorEl    = document.getElementById('auth-error');
+  if (!submitBtn || !errorEl) return;
 
-  submitBtn.addEventListener('click', async () => {
+  // Prevent duplicate listeners on repeat calls
+  const newBtn = submitBtn.cloneNode(true);
+  submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+
+  newBtn.addEventListener('click', async () => {
     const phone = document.getElementById('auth-phone').value.trim();
     const pass  = document.getElementById('auth-pass').value;
     errorEl.classList.add('hidden');
@@ -47,8 +52,8 @@ function showAuth() {
       return;
     }
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Please wait…';
+    newBtn.disabled = true;
+    newBtn.textContent = 'Please wait…';
 
     try {
       await login(phone, pass);
@@ -59,14 +64,14 @@ function showAuth() {
         await logout();
         errorEl.textContent = 'This phone number hasn\'t been added to the team yet. Ask your admin to add you first.';
         errorEl.classList.remove('hidden');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Log in';
+        newBtn.disabled = false;
+        newBtn.textContent = 'Log in';
       }
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Log in';
+      newBtn.disabled = false;
+      newBtn.textContent = 'Log in';
     }
   });
 }
@@ -342,9 +347,22 @@ function setupReminders() {
 
 // ===== SERVICE WORKER =====
 function registerSW() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-  }
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.register('./service-worker.js').then(reg => {
+    // Check for updates every 5 minutes
+    setInterval(() => reg.update(), 5 * 60000);
+
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          // New version available — reload silently
+          location.reload();
+        }
+      });
+    });
+  }).catch(console.error);
 }
 
 // ===== BOOT =====
