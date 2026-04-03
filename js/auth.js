@@ -44,14 +44,17 @@ async function loadMember() {
       .maybeSingle();
 
     if (byEmail) {
-      // Link auth_id
-      const { data: updated } = await supabase
+      // Link auth_id via server function (bypasses RLS)
+      await supabase.rpc('link_auth_id', {
+        p_email: currentUser.email,
+        p_auth_id: currentUser.id
+      });
+      const { data: linked } = await supabase
         .from('team_members')
-        .update({ auth_id: currentUser.id })
-        .eq('id', byEmail.id)
-        .select()
-        .single();
-      currentMember = updated;
+        .select('*')
+        .eq('auth_id', currentUser.id)
+        .maybeSingle();
+      currentMember = linked || byEmail;
     } else {
       // Check if first user ever → auto-admin
       const { count } = await supabase

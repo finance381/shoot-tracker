@@ -92,14 +92,13 @@ function showAuth() {
         // Login with the new credentials
         await login(phone, pass);
 
-        // Manually link auth_id to team_members row
+        // Link auth_id via server function (bypasses RLS)
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
-          await supabase
-            .from('team_members')
-            .update({ auth_id: authUser.id })
-            .eq('email', fakeEmail)
-            .is('auth_id', null);
+          await supabase.rpc('link_auth_id', {
+            p_email: fakeEmail,
+            p_auth_id: authUser.id
+          });
         }
 
         await initAuth();
