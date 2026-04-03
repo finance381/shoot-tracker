@@ -134,32 +134,46 @@ function openTeamModal(member = null) {
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        // Save admin session before signUp
+        // Save admin tokens
         const { data: { session: adminSession } } = await supabase.auth.getSession();
+        const adminTokens = adminSession ? {
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token
+        } : null;
 
+        // Create auth account
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: fakeEmail, password: pass,
           options: { data: { name, phone } }
         });
 
         if (signUpErr) throw signUpErr;
+        const newAuthId = signUpData.user?.id || null;
 
-        // Restore admin session immediately
-        if (adminSession) {
-          await supabase.auth.setSession({
-            access_token: adminSession.access_token,
-            refresh_token: adminSession.refresh_token
-          });
+        // Restore admin session before DB operations
+        if (adminTokens) {
+          const { error: sessionErr } = await supabase.auth.setSession(adminTokens);
+          if (sessionErr) {
+            // Session restore failed — insert without auth_id link
+            console.warn('Session restore failed, inserting without auth_id');
+          }
         }
 
-        const newAuthId = signUpData.user?.id || null;
+        // Small delay to let session settle
+        await new Promise(r => setTimeout(r, 300));
+
         const { error: insertErr } = await supabase.from('team_members').insert({
           auth_id: newAuthId,
           name, role, email: fakeEmail, phone,
           is_admin: false
         });
 
-        if (insertErr) throw insertErr;
+        if (insertErr) {
+          console.error('Insert error:', insertErr);
+          errEl.textContent = insertErr.message;
+          errEl.classList.remove('hidden');
+          return;
+        }
 
         close();
         render();
