@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { isAdmin, signup } from './auth.js';
+import { isAdmin } from './auth.js';
 
 const container = () => document.getElementById('page-team');
 
@@ -29,7 +29,7 @@ export async function render() {
         <div class="team-info">
           <div class="team-name">${m.name} ${m.is_admin ? '<span class="team-admin-badge">Admin</span>' : ''}</div>
           ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
-          <div class="team-contact">${m.email}${m.phone ? ' · ' + m.phone : ''}</div>
+          <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
         </div>
         ${isAdmin() && !m.is_admin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
       </div>
@@ -37,7 +37,7 @@ export async function render() {
     ${team.length === 0 ? '<div class="empty-state"><div class="emoji">👥</div>No team members yet</div>' : ''}
   `;
 
-  if (isAdmin()) {
+  if (showAdmin) {
     el.querySelector('#add-member-btn')?.addEventListener('click', () => openTeamModal());
 
     el.querySelectorAll('.team-edit-btn').forEach(btn => {
@@ -134,45 +134,37 @@ function openTeamModal(member = null) {
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        // Save admin tokens
+        // Step 1: Insert row FIRST while admin session is active
+        const { data: newRow, error: insertErr } = await supabase
+          .from('team_members')
+          .insert({ name, role, email: fakeEmail, phone, is_admin: false })
+          .select()
+          .single();
+
+        if (insertErr) throw insertErr;
+
+        // Step 2: Save admin tokens before signUp hijacks session
         const { data: { session: adminSession } } = await supabase.auth.getSession();
-        const adminTokens = adminSession ? {
+        const adminTokens = {
           access_token: adminSession.access_token,
           refresh_token: adminSession.refresh_token
-        } : null;
+        };
 
-        // Create auth account
+        // Step 3: Create auth account (switches session away from admin)
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: fakeEmail, password: pass,
           options: { data: { name, phone } }
         });
 
-        if (signUpErr) throw signUpErr;
-        const newAuthId = signUpData.user?.id || null;
+        // Step 4: Restore admin session
+        await supabase.auth.setSession(adminTokens);
 
-        // Restore admin session before DB operations
-        if (adminTokens) {
-          const { error: sessionErr } = await supabase.auth.setSession(adminTokens);
-          if (sessionErr) {
-            // Session restore failed — insert without auth_id link
-            console.warn('Session restore failed, inserting without auth_id');
-          }
-        }
-
-        // Small delay to let session settle
-        await new Promise(r => setTimeout(r, 300));
-
-        const { error: insertErr } = await supabase.from('team_members').insert({
-          auth_id: newAuthId,
-          name, role, email: fakeEmail, phone,
-          is_admin: false
-        });
-
-        if (insertErr) {
-          console.error('Insert error:', insertErr);
-          errEl.textContent = insertErr.message;
-          errEl.classList.remove('hidden');
-          return;
+        // Step 5: Link auth_id if signup succeeded
+        if (!signUpErr && signUpData?.user?.id) {
+          await supabase
+            .from('team_members')
+            .update({ auth_id: signUpData.user.id })
+            .eq('id', newRow.id);
         }
 
         close();

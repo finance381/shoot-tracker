@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { initAuth, getUser, getMember, login, signup, logout } from './auth.js';
+import { initAuth, getUser, getMember, login, logout } from './auth.js';
 import { render as renderDashboard } from './dashboard.js';
 import { render as renderCalendar } from './calendar.js';
 import { render as renderShoots } from './shoots.js';
@@ -60,7 +60,7 @@ function showAuth() {
         errorEl.textContent = 'This phone number hasn\'t been added to the team yet. Ask your admin to add you first.';
         errorEl.classList.remove('hidden');
         submitBtn.disabled = false;
-        submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+        submitBtn.textContent = 'Log in';
       }
     } catch (err) {
       errorEl.textContent = err.message;
