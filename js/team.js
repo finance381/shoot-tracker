@@ -121,10 +121,12 @@ function openTeamModal(member = null) {
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        await supabase.from('team_members').insert({
+        const { error: insertErr } = await supabase.from('team_members').insert({
           name, role, email: fakeEmail, phone,
           is_admin: false
         });
+
+        if (insertErr) throw insertErr;
 
         close();
         render();
