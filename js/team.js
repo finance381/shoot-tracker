@@ -5,15 +5,23 @@ const container = () => document.getElementById('page-team');
 
 export async function render() {
   const el = container();
-  const { data: members } = await supabase
+  if (!el) return;
+
+  try {
+  const { data: members, error } = await supabase
     .from('team_members')
     .select('*')
     .order('created_at');
 
+  if (error) { el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>${error.message}</div>`; return; }
+
   const team = members || [];
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const meInList = team.find(m => m.email === authUser?.email);
+  const showAdmin = isAdmin() || meInList?.is_admin === true;
 
   el.innerHTML = `
-    ${isAdmin() ? `<button class="btn-primary btn-full" id="add-member-btn" style="margin-bottom:20px">+ Add Team Member</button>` : ''}
+    ${showAdmin ? `<button class="btn-primary btn-full" id="add-member-btn" style="margin-bottom:20px">+ Add Team Member</button>` : ''}
     <p class="section-title">Team members</p>
     ${team.map(m => `
       <div class="team-card" data-id="${m.id}">
@@ -39,6 +47,10 @@ export async function render() {
         if (member) openTeamModal(member);
       });
     });
+  }
+  } catch (err) {
+    console.error('Team render error:', err);
+    el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>Error loading team: ${err.message}</div>`;
   }
 }
 

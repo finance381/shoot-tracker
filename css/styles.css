@@ -234,8 +234,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 /* ========== FAB ========== */
 .fab {
   position: fixed;
-  bottom: calc(var(--nav-h) + 16px);
-  right: 20px;
+  bottom: calc(var(--nav-h) + 20px);
+  right: 16px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
