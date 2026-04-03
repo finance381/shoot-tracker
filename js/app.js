@@ -33,21 +33,8 @@ function showAuth() {
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
 
-  let isSignup = false;
   const submitBtn  = document.getElementById('auth-submit');
-  const toggleBtn  = document.getElementById('auth-toggle-btn');
-  const toggleText = document.getElementById('auth-toggle-text');
-  const signupFields = document.getElementById('signup-fields');
   const errorEl    = document.getElementById('auth-error');
-
-  toggleBtn.addEventListener('click', () => {
-    isSignup = !isSignup;
-    submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
-    toggleText.textContent = isSignup ? 'Already have an account?' : 'Don\'t have an account?';
-    toggleBtn.textContent = isSignup ? 'Log in' : 'Sign up';
-    signupFields.classList.toggle('hidden', !isSignup);
-    errorEl.classList.add('hidden');
-  });
 
   submitBtn.addEventListener('click', async () => {
     const phone = document.getElementById('auth-phone').value.trim();
@@ -64,12 +51,7 @@ function showAuth() {
     submitBtn.textContent = 'Please wait…';
 
     try {
-      if (isSignup) {
-        const name = document.getElementById('auth-name').value.trim() || phone;
-        await signup(phone, pass, name);
-      } else {
-        await login(phone, pass);
-      }
+      await login(phone, pass);
       await initAuth();
       if (getMember()) {
         showApp();
@@ -84,7 +66,7 @@ function showAuth() {
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');
       submitBtn.disabled = false;
-      submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+      submitBtn.textContent = 'Log in';
     }
   });
 }
@@ -148,7 +130,9 @@ function setupLogout() {
 }
 
 function setupChangePassword() {
-  document.getElementById('btn-change-pw').addEventListener('click', () => {
+  const btn = document.getElementById('btn-change-pw');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
