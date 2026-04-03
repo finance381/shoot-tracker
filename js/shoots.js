@@ -1,11 +1,10 @@
 import { supabase } from './supabase.js';
 
 const STATUSES = ['Planned', 'Shot', 'Edited', 'Posted'];
-const STATUS_COLORS = { Planned: 'blue', Shot: 'amber', Edited: 'plum', Posted: 'sage' };
 
 let filterMember = 'All';
 let filterStatus = 'All';
-let viewMode = 'list'; // list | pipeline
+let viewMode = 'list';
 let teamCache = [];
 
 const container = () => document.getElementById('page-shoots');
@@ -27,17 +26,13 @@ export async function render() {
     return true;
   });
 
-  const memberChips = [
-    { id: 'All', name: 'All' },
-    ...teamCache
-  ];
-
+  const memberChips = [{ id: 'All', name: 'All' }, ...teamCache];
   const statusChips = ['All', ...STATUSES];
 
   el.innerHTML = `
     <div class="filter-bar">
       ${memberChips.map(m => `
-        <button class="filter-chip${filterMember === (m.id || m) ? ' active' : ''}" data-member="${m.id}">${m.name}</button>
+        <button class="filter-chip${filterMember === m.id ? ' active' : ''}" data-member="${m.id}">${m.name}</button>
       `).join('')}
     </div>
     <div class="filter-bar">
@@ -52,7 +47,6 @@ export async function render() {
     <div id="shoots-content"></div>
   `;
 
-  // Filter handlers
   el.querySelectorAll('[data-member]').forEach(btn => {
     btn.addEventListener('click', () => { filterMember = btn.dataset.member; render(); });
   });
@@ -68,17 +62,33 @@ export async function render() {
   else renderPipeline(content, filtered, shoots);
 }
 
+function renderLocation(s) {
+  if (s.location_type === 'outdoor') return s.outdoor_venue || 'Outdoor';
+  return s.location || '';
+}
+
+function renderTags(s) {
+  let tags = '';
+  if (s.type) tags += s.type.split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+  if (s.departments?.length) tags += s.departments.map(d => `<span class="tag tag-dept">${d}</span>`).join('');
+  if (s.is_impromptu) tags += '<span class="tag tag-impromptu">Impromptu</span>';
+  if (s.location_type === 'outdoor') tags += '<span class="tag tag-outdoor">Outdoor</span>';
+  return tags ? `<div class="tag-row">${tags}</div>` : '';
+}
+
 function renderList(el, shoots) {
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = shoots.filter(s => s.date >= today);
   const past = [...shoots.filter(s => s.date < today)].reverse();
   const assigneeName = (id) => teamCache.find(t => t.id === id)?.name || '—';
+  const loc = (s) => renderLocation(s);
 
   const renderCard = (s) => `
     <div class="shoot-card border-${s.status}" data-id="${s.id}">
       <div class="shoot-info">
-        <div class="shoot-title">${s.type}${s.client ? ' — ' + s.client : ''}</div>
-        <div class="shoot-meta">${s.date}${s.time ? ' · ' + fmtTime(s.time) : ''}${s.location ? ' · ' + s.location : ''}</div>
+        <div class="shoot-title">${s.client || 'No client'}</div>
+        <div class="shoot-meta">${s.date}${s.time ? ' · ' + fmtTime(s.time) : ''}${loc(s) ? ' · ' + loc(s) : ''}</div>
+        ${renderTags(s)}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="status-chip status-${s.status}">${s.status}</span>
@@ -117,8 +127,9 @@ function renderPipeline(el, filtered, allShoots) {
             </div>
             ${items.length === 0 ? '<div class="pipe-empty">No shoots</div>' : items.map(s => `
               <div class="pipe-card" data-id="${s.id}">
-                <div class="pipe-card-type">${s.type}</div>
-                <div class="pipe-card-client">${s.client || '—'}</div>
+                <div class="pipe-card-type">${s.client || 'No client'}</div>
+                <div class="pipe-card-client">${s.type || '—'}</div>
+                ${s.is_impromptu ? '<span class="tag tag-impromptu" style="margin-top:4px">Impromptu</span>' : ''}
                 <div class="pipe-card-meta">
                   <span>${s.date}</span>
                   <span class="shoot-assignee">${assigneeName(s.assignee_id)}</span>

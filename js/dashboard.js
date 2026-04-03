@@ -15,7 +15,6 @@ export async function render() {
 
   const shoots = shootsRes.data || [];
   const team = teamRes.data || [];
-  const member = getMember();
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
   const pending  = shoots.filter(s => s.status === 'Shot' || s.status === 'Edited');
@@ -26,6 +25,20 @@ export async function render() {
     .slice(0, 5);
 
   const assigneeName = (id) => team.find(t => t.id === id)?.name || '—';
+
+  const renderLocation = (s) => {
+    if (s.location_type === 'outdoor') return s.outdoor_venue || 'Outdoor';
+    return s.location || '';
+  };
+
+  const renderTags = (s) => {
+    let tags = '';
+    if (s.type) tags += s.type.split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+    if (s.departments?.length) tags += s.departments.map(d => `<span class="tag tag-dept">${d}</span>`).join('');
+    if (s.is_impromptu) tags += '<span class="tag tag-impromptu">Impromptu</span>';
+    if (s.location_type === 'outdoor') tags += '<span class="tag tag-outdoor">Outdoor</span>';
+    return tags ? `<div class="tag-row">${tags}</div>` : '';
+  };
 
   el.innerHTML = `
     <div class="stats-grid">
@@ -53,15 +66,15 @@ export async function render() {
       : upcoming.map(s => `
         <div class="shoot-card border-${s.status}" data-id="${s.id}">
           <div class="shoot-info">
-            <div class="shoot-title">${s.type}${s.client ? ' — ' + s.client : ''}</div>
-            <div class="shoot-meta">${s.date}${s.time ? ' at ' + fmtTime(s.time) : ''}${s.location ? ' · ' + s.location : ''}</div>
+            <div class="shoot-title">${s.client || 'No client'}</div>
+            <div class="shoot-meta">${s.date}${s.time ? ' at ' + fmtTime(s.time) : ''}${renderLocation(s) ? ' · ' + renderLocation(s) : ''}</div>
+            ${renderTags(s)}
           </div>
           <span class="shoot-assignee">${assigneeName(s.assignee_id)}</span>
         </div>
       `).join('')}
   `;
 
-  // Click handlers
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', () => {
       const shoot = shoots.find(s => s.id === card.dataset.id);

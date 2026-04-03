@@ -3,56 +3,167 @@ import { isAdmin } from './auth.js';
 
 const container = () => document.getElementById('page-team');
 
+let activeMasterTab = 'shoot_type';
+
 export async function render() {
   const el = container();
   if (!el) return;
 
   try {
-  const { data: members, error } = await supabase
-    .from('team_members')
-    .select('*')
-    .order('created_at');
+    const { data: members, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .order('created_at');
 
-  if (error) { el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>${error.message}</div>`; return; }
+    if (error) { el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>${error.message}</div>`; return; }
 
-  const team = members || [];
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const meInList = team.find(m => m.email === authUser?.email);
-  const showAdmin = isAdmin() || meInList?.is_admin === true;
+    const team = members || [];
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const meInList = team.find(m => m.email === authUser?.email);
+    const showAdmin = isAdmin() || meInList?.is_admin === true;
 
-  el.innerHTML = `
-    ${showAdmin ? `<button class="btn-primary btn-full" id="add-member-btn" style="margin-bottom:20px">+ Add Team Member</button>` : ''}
-    <p class="section-title">Team members</p>
-    ${team.map(m => `
-      <div class="team-card" data-id="${m.id}">
-        <div class="team-avatar">${m.name.charAt(0).toUpperCase()}</div>
-        <div class="team-info">
-          <div class="team-name">${m.name} ${m.is_admin ? '<span class="team-admin-badge">Admin</span>' : ''}</div>
-          ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
-          <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
+    el.innerHTML = `
+      ${showAdmin ? `<button class="btn-primary btn-full" id="add-member-btn" style="margin-bottom:20px">+ Add Team Member</button>` : ''}
+      <p class="section-title">Team members</p>
+      ${team.map(m => `
+        <div class="team-card" data-id="${m.id}">
+          <div class="team-avatar">${m.name.charAt(0).toUpperCase()}</div>
+          <div class="team-info">
+            <div class="team-name">${m.name} ${m.is_admin ? '<span class="team-admin-badge">Admin</span>' : ''}</div>
+            ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
+            <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
+          </div>
+          ${showAdmin && !m.is_admin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
         </div>
-        ${isAdmin() && !m.is_admin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
-      </div>
-    `).join('')}
-    ${team.length === 0 ? '<div class="empty-state"><div class="emoji">👥</div>No team members yet</div>' : ''}
-  `;
+      `).join('')}
+      ${team.length === 0 ? '<div class="empty-state"><div class="emoji">👥</div>No team members yet</div>' : ''}
+      ${showAdmin ? renderMastersSection() : ''}
+    `;
 
-  if (showAdmin) {
-    el.querySelector('#add-member-btn')?.addEventListener('click', () => openTeamModal());
+    if (showAdmin) {
+      el.querySelector('#add-member-btn')?.addEventListener('click', () => openTeamModal());
 
-    el.querySelectorAll('.team-edit-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const member = team.find(m => m.id === btn.dataset.id);
-        if (member) openTeamModal(member);
+      el.querySelectorAll('.team-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const member = team.find(m => m.id === btn.dataset.id);
+          if (member) openTeamModal(member);
+        });
       });
-    });
-  }
+
+      setupMastersHandlers(el);
+    }
   } catch (err) {
     console.error('Team render error:', err);
     el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>Error loading team: ${err.message}</div>`;
   }
 }
+
+// ===== MASTERS SECTION =====
+
+function renderMastersSection() {
+  const tabs = [
+    { key: 'shoot_type', label: 'Shoot Types' },
+    { key: 'location', label: 'Locations' },
+    { key: 'department', label: 'Departments' }
+  ];
+
+  return `
+    <div class="masters-section">
+      <p class="section-title" style="margin-top:32px">Manage Lists</p>
+      <div class="masters-tabs">
+        ${tabs.map(t => `
+          <button class="master-tab${activeMasterTab === t.key ? ' active' : ''}" data-mtab="${t.key}">${t.label}</button>
+        `).join('')}
+      </div>
+      <div id="masters-content"></div>
+    </div>
+  `;
+}
+
+async function setupMastersHandlers(el) {
+  // Tab clicks
+  el.querySelectorAll('[data-mtab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeMasterTab = btn.dataset.mtab;
+      el.querySelectorAll('.master-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadMastersList(el);
+    });
+  });
+
+  await loadMastersList(el);
+}
+
+async function loadMastersList(el) {
+  const contentEl = el.querySelector('#masters-content');
+  if (!contentEl) return;
+
+  const { data: items, error } = await supabase
+    .from('masters')
+    .select('*')
+    .eq('type', activeMasterTab)
+    .order('sort_order');
+
+  if (error) {
+    contentEl.innerHTML = `<div class="empty-state">${error.message}</div>`;
+    return;
+  }
+
+  const list = items || [];
+
+  contentEl.innerHTML = `
+    <div class="master-list">
+      ${list.map(item => `
+        <div class="master-item">
+          <span class="master-item-label">${item.label}</span>
+          <button class="master-item-delete" data-mid="${item.id}" title="Remove">✕</button>
+        </div>
+      `).join('')}
+      ${list.length === 0 ? '<div style="text-align:center;color:var(--stone);font-size:13px;padding:12px;">No items yet</div>' : ''}
+    </div>
+    <div class="master-add-row">
+      <input type="text" id="master-new-label" placeholder="Add new item…">
+      <button id="master-add-btn">Add</button>
+    </div>
+  `;
+
+  // Delete handlers
+  contentEl.querySelectorAll('.master-item-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await supabase.from('masters').delete().eq('id', btn.dataset.mid);
+      loadMastersList(el);
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Item removed' }));
+    });
+  });
+
+  // Add handler
+  const addBtn = contentEl.querySelector('#master-add-btn');
+  const addInput = contentEl.querySelector('#master-new-label');
+
+  addBtn.addEventListener('click', async () => {
+    const label = addInput.value.trim();
+    if (!label) return;
+
+    const maxSort = list.length > 0 ? Math.max(...list.map(i => i.sort_order || 0)) : 0;
+    await supabase.from('masters').insert({
+      type: activeMasterTab,
+      label,
+      sort_order: maxSort + 1
+    });
+
+    addInput.value = '';
+    loadMastersList(el);
+    window.dispatchEvent(new CustomEvent('toast', { detail: 'Item added' }));
+  });
+
+  // Enter key to add
+  addInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+}
+
+// ===== TEAM MODAL =====
 
 function openTeamModal(member = null) {
   const isEdit = !!member;
@@ -141,7 +252,7 @@ function openTeamModal(member = null) {
       errEl.textContent = err.message || 'Something went wrong';
       errEl.classList.remove('hidden');
       saveBtn.disabled = false;
-      saveBtn.textContent = isEdit ? 'Save' : 'Add & Create Login';
+      saveBtn.textContent = isEdit ? 'Save' : 'Add Member';
     }
   });
 
@@ -153,6 +264,5 @@ function openTeamModal(member = null) {
       render();
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Member removed' }));
     });
-
   }
 }

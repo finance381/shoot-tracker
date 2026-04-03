@@ -20,7 +20,6 @@ async function init() {
   if (user && getMember()) {
     showApp();
   } else if (user && !getMember()) {
-    // Stale session with no team membership — sign out and show clean login
     await logout();
     showAuth();
   } else {
@@ -38,7 +37,7 @@ function showAuth() {
   const setupLink  = document.getElementById('auth-setup-link');
   if (!submitBtn || !errorEl) return;
 
-  // Prevent duplicate listeners on repeat calls
+  // Prevent duplicate listeners
   const newBtn = submitBtn.cloneNode(true);
   submitBtn.parentNode.replaceChild(newBtn, submitBtn);
 
@@ -66,7 +65,6 @@ function showAuth() {
       newBtn.textContent = 'Setting up…';
 
       try {
-        // Check if phone exists in team
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
         const { data: member } = await supabase
@@ -83,14 +81,12 @@ function showAuth() {
           return;
         }
 
-        // Create auth account
         const { error: signUpErr } = await supabase.auth.signUp({
           email: fakeEmail, password: pass,
           options: { data: { phone } }
         });
         if (signUpErr) throw signUpErr;
 
-        // Auto-login
         await login(phone, pass);
         await initAuth();
         if (getMember()) {
@@ -143,14 +139,6 @@ function showAuth() {
       newBtn.textContent = 'Log in';
     }
   });
-}
-
-function showAuthError(msg) {
-  document.getElementById('auth-screen').classList.remove('hidden');
-  document.getElementById('app').classList.add('hidden');
-  const errorEl = document.getElementById('auth-error');
-  errorEl.textContent = msg;
-  errorEl.classList.remove('hidden');
 }
 
 // ===== MAIN APP =====
@@ -269,6 +257,7 @@ function setupChangePassword() {
     });
   });
 }
+
 // ===== SHOOT MODAL =====
 function setupShootModal() {
   const overlay = document.getElementById('shoot-modal');
@@ -292,21 +281,75 @@ function setupShootModal() {
     statusGroup.style.display = isEdit ? 'block' : 'none';
     deleteBtn.classList.toggle('hidden', !isEdit);
 
-    document.getElementById('s-date').value     = shoot?.date || defaults.date || new Date().toISOString().slice(0, 10);
-    document.getElementById('s-time').value     = shoot?.time || '';
-    document.getElementById('s-type').value     = shoot?.type || 'Reel';
-    document.getElementById('s-client').value   = shoot?.client || '';
-    document.getElementById('s-location').value = shoot?.location || '';
-    document.getElementById('s-notes').value    = shoot?.notes || '';
+    // Basic fields
+    document.getElementById('s-date').value  = shoot?.date || defaults.date || new Date().toISOString().slice(0, 10);
+    document.getElementById('s-time').value  = shoot?.time || '';
+    document.getElementById('s-client').value = shoot?.client || '';
+    document.getElementById('s-notes').value = shoot?.notes || '';
 
-    // Load team for assignee dropdown
-    const { data: team } = await supabase.from('team_members').select('id, name');
+    // Fetch masters + team in parallel
+    const [mastersRes, teamRes] = await Promise.all([
+      supabase.from('masters').select('*').order('sort_order'),
+      supabase.from('team_members').select('id, name')
+    ]);
+    const masters = mastersRes.data || [];
+    const team = teamRes.data || [];
+
+    // Assignee
     const assigneeSel = document.getElementById('s-assignee');
-    assigneeSel.innerHTML = (team || []).map(m =>
+    assigneeSel.innerHTML = team.map(m =>
       `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
     ).join('');
 
-    // Status bar
+    // Type checkboxes (multi-select)
+    const shootTypes = masters.filter(m => m.type === 'shoot_type');
+    const selectedTypes = (shoot?.type || '').split(',').map(t => t.trim()).filter(Boolean);
+    document.getElementById('s-type-checks').innerHTML = shootTypes.map(t => `
+      <label class="check-label">
+        <input type="checkbox" value="${t.label}" ${selectedTypes.includes(t.label) ? 'checked' : ''}>
+        <span>${t.label}</span>
+      </label>
+    `).join('');
+
+    // Department checkboxes (multi-select)
+    const departments = masters.filter(m => m.type === 'department');
+    const selectedDepts = shoot?.departments || [];
+    document.getElementById('s-dept-checks').innerHTML = departments.map(d => `
+      <label class="check-label">
+        <input type="checkbox" value="${d.label}" ${selectedDepts.includes(d.label) ? 'checked' : ''}>
+        <span>${d.label}</span>
+      </label>
+    `).join('');
+
+    // Location dropdown
+    const locations = masters.filter(m => m.type === 'location');
+    const locationSel = document.getElementById('s-location');
+    const currentLoc = shoot?.location || '';
+    const locType = shoot?.location_type || 'indoor';
+    locationSel.innerHTML =
+      locations.map(l =>
+        `<option value="${l.label}" ${locType === 'indoor' && currentLoc === l.label ? 'selected' : ''}>${l.label}</option>`
+      ).join('') +
+      `<option value="__outdoor" ${locType === 'outdoor' ? 'selected' : ''}>🌳 Outdoor (other)</option>`;
+
+    // Outdoor venue toggle
+    const outdoorGroup = document.getElementById('s-outdoor-group');
+    document.getElementById('s-outdoor').value = shoot?.outdoor_venue || '';
+    outdoorGroup.classList.toggle('hidden', locType !== 'outdoor');
+    locationSel.onchange = () => {
+      outdoorGroup.classList.toggle('hidden', locationSel.value !== '__outdoor');
+    };
+
+    // Impromptu toggle
+    const plannedBtn = document.getElementById('s-planned');
+    const impromptuBtn = document.getElementById('s-impromptu');
+    const isImpromptu = shoot?.is_impromptu || false;
+    plannedBtn.classList.toggle('active', !isImpromptu);
+    impromptuBtn.classList.toggle('active', isImpromptu);
+    plannedBtn.onclick = () => { plannedBtn.classList.add('active'); impromptuBtn.classList.remove('active'); };
+    impromptuBtn.onclick = () => { impromptuBtn.classList.add('active'); plannedBtn.classList.remove('active'); };
+
+    // Status bar (edit only)
     if (isEdit) {
       const statuses = ['Planned', 'Shot', 'Edited', 'Posted'];
       statusBar.innerHTML = statuses.map(s =>
@@ -327,13 +370,30 @@ function setupShootModal() {
   document.getElementById('modal-save').addEventListener('click', async () => {
     const date     = document.getElementById('s-date').value;
     const time     = document.getElementById('s-time').value || null;
-    const type     = document.getElementById('s-type').value;
     const client   = document.getElementById('s-client').value.trim();
-    const location = document.getElementById('s-location').value.trim();
     const notes    = document.getElementById('s-notes').value.trim();
     const assignee_id = document.getElementById('s-assignee').value || null;
 
     if (!date) return;
+
+    // Multi-select types
+    const typeChecks = document.querySelectorAll('#s-type-checks input:checked');
+    const type = Array.from(typeChecks).map(c => c.value).join(',');
+    if (!type) { alert('Select at least one type'); return; }
+
+    // Multi-select departments
+    const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
+    const departments = Array.from(deptChecks).map(c => c.value);
+
+    // Location
+    const locationSel = document.getElementById('s-location');
+    const locVal = locationSel.value;
+    const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
+    const location = location_type === 'outdoor' ? '' : locVal;
+    const outdoor_venue = location_type === 'outdoor' ? document.getElementById('s-outdoor').value.trim() : '';
+
+    // Impromptu
+    const is_impromptu = document.getElementById('s-impromptu').classList.contains('active');
 
     let status = 'Planned';
     if (editingShoot) {
@@ -341,7 +401,7 @@ function setupShootModal() {
       status = activeStatus?.dataset.status || editingShoot.status;
     }
 
-    const row = { date, time, type, client, location, notes, assignee_id, status };
+    const row = { date, time, type, client, location, notes, assignee_id, status, departments, location_type, outdoor_venue, is_impromptu };
 
     if (editingShoot) {
       await supabase.from('shoots').update(row).eq('id', editingShoot.id);
@@ -353,7 +413,7 @@ function setupShootModal() {
     }
 
     close();
-    pages[currentPage](); // refresh current page
+    pages[currentPage]();
   });
 
   // Delete
@@ -385,11 +445,9 @@ function setupReminders() {
   if (!('Notification' in window) || Notification.permission === 'denied') return;
 
   if (Notification.permission === 'default') {
-    // Ask after a short delay
     setTimeout(() => Notification.requestPermission(), 5000);
   }
 
-  // Check every 5 min for shoots starting within 1 hour
   setInterval(async () => {
     if (Notification.permission !== 'granted') return;
     const now = new Date();
@@ -408,11 +466,20 @@ function setupReminders() {
       if (shootTime > now && shootTime <= soon) {
         new Notification('📸 Shoot in 1 hour', {
           body: `${s.type}${s.client ? ' — ' + s.client : ''} at ${s.time}${s.location ? ' · ' + s.location : ''}`,
-          tag: s.id // prevents duplicates
+          tag: s.id
         });
       }
     });
   }, 5 * 60000);
+}
+
+// ===== AUTO REFRESH =====
+function setupAutoRefresh() {
+  setInterval(() => {
+    pages[currentPage]();
+    const member = getMember();
+    document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
+  }, 30000);
 }
 
 // ===== SERVICE WORKER =====
@@ -420,27 +487,17 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
   navigator.serviceWorker.register('./service-worker.js').then(reg => {
-    // Check for updates every 5 minutes
     setInterval(() => reg.update(), 5 * 60000);
 
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'activated') {
-          // New version available — reload silently
           location.reload();
         }
       });
     });
   }).catch(console.error);
-}
-
-function setupAutoRefresh() {
-  setInterval(() => {
-    pages[currentPage]();
-    const member = getMember();
-    document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
-  }, 30000);
 }
 
 // ===== BOOT =====

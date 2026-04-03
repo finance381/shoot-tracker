@@ -109,25 +109,36 @@
             <input type="time" id="s-time">
           </div>
         </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label>Type *</label>
-            <select id="s-type">
-              <option>Reel</option><option>Photo</option><option>Story</option><option>BTS</option><option>Carousel</option>
-            </select>
+        <div class="form-group">
+          <label>Planned or Impromptu</label>
+          <div class="toggle-row">
+            <button type="button" id="s-planned" class="toggle-btn active">📋 Planned</button>
+            <button type="button" id="s-impromptu" class="toggle-btn">⚡ Impromptu</button>
           </div>
-          <div class="form-group">
-            <label>Assignee</label>
-            <select id="s-assignee"></select>
-          </div>
+        </div>
+        <div class="form-group">
+          <label>Type *</label>
+          <div id="s-type-checks" class="checkbox-group"></div>
+        </div>
+        <div class="form-group">
+          <label>Assignee</label>
+          <select id="s-assignee"></select>
         </div>
         <div class="form-group">
           <label>Client / Brand</label>
           <input type="text" id="s-client" placeholder="e.g. Nike, internal">
         </div>
         <div class="form-group">
+          <label>For Department</label>
+          <div id="s-dept-checks" class="checkbox-group"></div>
+        </div>
+        <div class="form-group">
           <label>Location</label>
-          <input type="text" id="s-location" placeholder="e.g. Studio A, Connaught Place">
+          <select id="s-location"></select>
+        </div>
+        <div class="form-group hidden" id="s-outdoor-group">
+          <label>Outdoor Venue</label>
+          <input type="text" id="s-outdoor" placeholder="e.g. Central Park, Mall Road">
         </div>
         <div class="form-group" id="status-group" style="display:none">
           <label>Status</label>
