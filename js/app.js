@@ -101,6 +101,7 @@ function showApp() {
   setupToast();
   setupReminders();
   registerSW();
+  setupAutoRefresh();
 }
 
 // ===== NAVIGATION =====
@@ -363,6 +364,14 @@ function registerSW() {
       });
     });
   }).catch(console.error);
+}
+
+function setupAutoRefresh() {
+  setInterval(() => {
+    pages[currentPage]();
+    const member = getMember();
+    document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
+  }, 30000);
 }
 
 // ===== BOOT =====
