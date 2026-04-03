@@ -83,13 +83,25 @@ function showAuth() {
           return;
         }
 
-        const { error: signUpErr } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: fakeEmail, password: pass,
           options: { data: { phone } }
         });
         if (signUpErr) throw signUpErr;
 
+        // Login with the new credentials
         await login(phone, pass);
+
+        // Manually link auth_id to team_members row
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          await supabase
+            .from('team_members')
+            .update({ auth_id: authUser.id })
+            .eq('email', fakeEmail)
+            .is('auth_id', null);
+        }
+
         await initAuth();
         if (getMember()) {
           showApp();

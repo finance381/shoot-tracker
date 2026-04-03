@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       const results = [];
 
       for (const shoot of shoots) {
-        const shootTime = new Date(`${shoot.date}T${shoot.time}`);
+        const shootTime = new Date(`${shoot.date}T${shoot.time}+05:30`);
         const diffMin = (shootTime.getTime() - now.getTime()) / 60000;
 
         // Window: 45–75 min from now (handles 15-min cron interval)
