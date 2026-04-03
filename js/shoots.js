@@ -115,12 +115,17 @@ function renderList(el, shoots) {
 
 function renderPipeline(el, filtered, allShoots) {
   const assigneeName = (id) => teamCache.find(t => t.id === id)?.name || '—';
+  const STATUS_ORDER = ['Planned', 'Shot', 'Edited', 'Posted'];
+
+  const getOverall = (s) => {
+    if (!s.type_statuses || Object.keys(s.type_statuses).length === 0) return s.status;
+    return STATUS_ORDER[Math.min(...Object.values(s.type_statuses).map(st => STATUS_ORDER.indexOf(st)))];
+  };
 
   el.innerHTML = `
     <div class="pipeline-wrap">
       ${STATUSES.map(status => {
-        const items = filtered.filter(s => s.status === status);
-        const nextStatus = STATUSES[STATUSES.indexOf(status) + 1];
+        const items = filtered.filter(s => getOverall(s) === status);
         return `
           <div class="pipeline-col">
             <div class="pipe-header">
@@ -128,36 +133,68 @@ function renderPipeline(el, filtered, allShoots) {
               <span class="pipe-title">${status}</span>
               <span class="pipe-count">${items.length}</span>
             </div>
-            ${items.length === 0 ? '<div class="pipe-empty">No shoots</div>' : items.map(s => `
-              <div class="pipe-card" data-id="${s.id}">
-                <div class="pipe-card-type">${s.client || 'No client'}</div>
-                <div class="pipe-card-client">${s.type || '—'}</div>
-                ${s.is_impromptu ? '<span class="tag tag-impromptu" style="margin-top:4px">Impromptu</span>' : ''}
-                <div class="pipe-card-meta">
-                  <span>${s.date}</span>
-                  <span class="shoot-assignee">${assigneeName(s.assignee_id)}</span>
-                </div>
-                ${nextStatus ? `<button class="pipe-advance" data-advance="${s.id}" data-to="${nextStatus}">Move → ${nextStatus}</button>` : ''}
-              </div>
-            `).join('')}
+            ${items.length === 0 ? '<div class="pipe-empty">No shoots</div>' : items.map(s => {
+              const ts = s.type_statuses || {};
+              const types = Object.keys(ts);
+              return `
+                <div class="pipe-card" data-id="${s.id}">
+                  <div class="pipe-card-type">${s.client || 'No client'}</div>
+                  ${s.is_impromptu ? '<span class="tag tag-impromptu" style="margin-top:4px">Impromptu</span>' : ''}
+                  <div class="pipe-card-meta">
+                    <span>${s.date}</span>
+                    <span class="shoot-assignee">${assigneeName(s.assignee_id)}</span>
+                  </div>
+                  <div class="pipe-subtypes">
+                    ${types.map(t => {
+                      const tStatus = ts[t];
+                      const nextIdx = STATUS_ORDER.indexOf(tStatus) + 1;
+                      const nextS = nextIdx < STATUS_ORDER.length ? STATUS_ORDER[nextIdx] : null;
+                      return `
+                        <div class="pipe-subtype">
+                          <span class="pipe-subtype-name">${t}</span>
+                          <span class="status-chip status-${tStatus}" style="font-size:10px;padding:2px 8px;">${tStatus}</span>
+                          ${nextS ? `<button class="pipe-sub-advance" data-sid="${s.id}" data-type="${t}" data-to="${nextS}" title="Move ${t} to ${nextS}">→</button>` : '<span class="pipe-sub-done">✓</span>'}
+                        </div>`;
+                    }).join('')}
+                  </div>
+                </div>`;
+            }).join('')}
           </div>`;
       }).join('')}
     </div>`;
 
   el.querySelectorAll('.pipe-card[data-id]').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.pipe-advance')) return;
+      if (e.target.closest('.pipe-sub-advance')) return;
       const shoot = allShoots.find(s => s.id === card.dataset.id);
       if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
     });
   });
 
-  el.querySelectorAll('.pipe-advance').forEach(btn => {
+  el.querySelectorAll('.pipe-sub-advance').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await supabase.from('shoots').update({ status: btn.dataset.to }).eq('id', btn.dataset.advance);
+      const shootId = btn.dataset.sid;
+      const typeName = btn.dataset.type;
+      const newStatus = btn.dataset.to;
+
+      const shoot = allShoots.find(s => s.id === shootId);
+      if (!shoot) return;
+
+      const updatedTS = { ...shoot.type_statuses, [typeName]: newStatus };
+      const overallStatus = STATUS_ORDER[Math.min(...Object.values(updatedTS).map(st => STATUS_ORDER.indexOf(st)))];
+
+      await supabase.from('shoots').update({
+        type_statuses: updatedTS,
+        status: overallStatus
+      }).eq('id', shootId);
+
+      // Update local data for immediate re-render
+      shoot.type_statuses = updatedTS;
+      shoot.status = overallStatus;
+
       render();
-      window.dispatchEvent(new CustomEvent('toast', { detail: `Moved to ${btn.dataset.to}` }));
+      window.dispatchEvent(new CustomEvent('toast', { detail: `${typeName} → ${newStatus}` }));
     });
   });
 }

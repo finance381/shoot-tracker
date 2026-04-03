@@ -903,4 +903,57 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .pull-refresh.refreshing span::after {
   font-size: 13px;
 }
+body { background: var(--cream); }
+
+/* ========== PIPELINE SUB-TYPES ========== */
+.pipe-subtypes {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.pipe-subtype {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pipe-subtype-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--espresso);
+  flex: 1;
+}
+.pipe-sub-advance {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--sand);
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--terracotta);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.pipe-sub-advance:active {
+  background: var(--terracotta-light);
+  border-color: var(--terracotta);
+}
+.pipe-sub-done {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--sage-bg);
+  color: var(--sage);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 </style>

@@ -403,7 +403,25 @@ function setupShootModal() {
       status = activeStatus?.dataset.status || editingShoot.status;
     }
 
-    const row = { date, time, type, client, location, notes, assignee_id, status, departments, location_type, outdoor_venue, is_impromptu };
+    // Build type_statuses
+    const types = type.split(',').map(t => t.trim()).filter(Boolean);
+    let type_statuses = {};
+    if (editingShoot && editingShoot.type_statuses) {
+      // Preserve existing type statuses, add new types as current status, remove unchecked
+      types.forEach(t => {
+        type_statuses[t] = editingShoot.type_statuses[t] || status;
+      });
+    } else {
+      types.forEach(t => { type_statuses[t] = status; });
+    }
+
+    // Derive overall status from lowest type status
+    const STATUS_ORDER = ['Planned', 'Shot', 'Edited', 'Posted'];
+    const overallStatus = editingShoot
+      ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
+      : 'Planned';
+
+    const row = { date, time, type, client, location, notes, assignee_id, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
     if (editingShoot) {
       await supabase.from('shoots').update(row).eq('id', editingShoot.id);

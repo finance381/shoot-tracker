@@ -34,7 +34,14 @@ export async function render() {
 
   const renderTags = (s) => {
     let tags = '';
-    if (s.type) tags += s.type.split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+    const ts = s.type_statuses || {};
+    if (Object.keys(ts).length > 0) {
+      tags += Object.entries(ts).map(([t, st]) =>
+        `<span class="tag tag-type">${t} <small style="opacity:.7">${st}</small></span>`
+      ).join('');
+    } else if (s.type) {
+      tags += s.type.split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+    }
     if (s.departments?.length) tags += s.departments.map(d => `<span class="tag tag-dept">${d}</span>`).join('');
     if (s.is_impromptu) tags += '<span class="tag tag-impromptu">Impromptu</span>';
     if (s.location_type === 'outdoor') tags += '<span class="tag tag-outdoor">Outdoor</span>';
