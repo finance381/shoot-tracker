@@ -91,10 +91,7 @@ function openTeamModal(member = null) {
         <div id="tm-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
-        ${isEdit ? `
-          <button class="btn-danger" id="tm-delete">Remove</button>
-          <button class="btn-secondary" id="tm-reset-pw" style="margin-left:8px">Reset Password</button>
-        ` : ''}
+        ${isEdit ? `<button class="btn-danger" id="tm-delete">Remove</button>` : ''}
         <span class="spacer"></span>
         <button class="btn-secondary" id="tm-cancel">Cancel</button>
         <button class="btn-primary" id="tm-save">${isEdit ? 'Save' : 'Add & Create Login'}</button>
@@ -186,43 +183,5 @@ function openTeamModal(member = null) {
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Member removed' }));
     });
 
-    overlay.querySelector('#tm-reset-pw')?.addEventListener('click', async () => {
-      const newPw = prompt(`Enter new password for ${member.name} (min 6 chars):`);
-      if (!newPw || newPw.length < 6) { alert('Password must be at least 6 characters'); return; }
-
-      try {
-        // Save admin session
-        const { data: { session: adminSession } } = await supabase.auth.getSession();
-
-        // Sign in as the member temporarily
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: member.email,
-          password: newPw // This won't work — we need their current password
-        });
-
-        // Since we can't sign in as them, use the admin workaround:
-        // Re-create their auth account
-        // Actually the simplest client-side approach — just delete and re-signup
-        if (member.auth_id) {
-          // We can't delete auth users from client. Prompt the admin.
-          // Best approach: just update via signUp with same email
-          const { phoneToEmail } = await import('./auth.js');
-
-          // Sign up again overwrites if email exists? No.
-          // Only real option without Edge Functions:
-          alert('To reset passwords, go to Supabase Dashboard → Authentication → Users → find the user → click three dots → Reset password.\n\nWe\'ll add a simpler flow soon.');
-        }
-
-        // Restore admin session
-        if (adminSession) {
-          await supabase.auth.setSession({
-            access_token: adminSession.access_token,
-            refresh_token: adminSession.refresh_token
-          });
-        }
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
-    });
   }
 }
