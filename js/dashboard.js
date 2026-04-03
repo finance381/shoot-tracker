@@ -25,7 +25,9 @@ export async function render() {
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
     .slice(0, 5);
 
+  const me = getMember();
   const assigneeName = (id) => team.find(t => t.id === id)?.name || '—';
+  const getAssignee = (s) => s.external_assignee ? '📷 ' + s.external_assignee : assigneeName(s.assignee_id);
 
   const renderLocation = (s) => {
     if (s.location_type === 'outdoor') return s.outdoor_venue || 'Outdoor';
@@ -72,13 +74,13 @@ export async function render() {
     ${upcoming.length === 0
       ? '<div class="empty-state"><div class="emoji">🎯</div>No upcoming shoots</div>'
       : upcoming.map(s => `
-        <div class="shoot-card border-${s.status}" data-id="${s.id}">
+        <div class="shoot-card ${me && s.assignee_id === me.id ? 'shoot-mine' : ''} border-${s.status}" data-id="${s.id}">
           <div class="shoot-info">
             <div class="shoot-title">${s.client || 'No client'}</div>
             <div class="shoot-meta">${s.date}${s.time ? ' at ' + fmtTime(s.time) : ''}${renderLocation(s) ? ' · ' + renderLocation(s) : ''}</div>
             ${renderTags(s)}
           </div>
-          <span class="shoot-assignee">${assigneeName(s.assignee_id)}</span>
+          <span class="shoot-assignee">${getAssignee(s)}</span>
         </div>
       `).join('')}
   `;

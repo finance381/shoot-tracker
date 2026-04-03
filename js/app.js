@@ -310,9 +310,20 @@ function setupShootModal() {
 
     // Assignee
     const assigneeSel = document.getElementById('s-assignee');
-    assigneeSel.innerHTML = team.map(m =>
-      `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
-    ).join('');
+    const isExternal = shoot?.assignee_id === '__external' || (!shoot?.assignee_id && shoot?.external_assignee);
+    assigneeSel.innerHTML =
+      team.map(m =>
+        `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
+      ).join('') +
+      `<option value="__external" ${isExternal ? 'selected' : ''}>📷 External</option>`;
+
+    const extGroup = document.getElementById('s-external-group');
+    const extInput = document.getElementById('s-external');
+    extGroup.classList.toggle('hidden', !isExternal);
+    extInput.value = shoot?.external_assignee || '';
+    assigneeSel.onchange = () => {
+      extGroup.classList.toggle('hidden', assigneeSel.value !== '__external');
+    };
 
     // Type checkboxes (multi-select)
     const shootTypes = masters.filter(m => m.type === 'shoot_type');
@@ -385,7 +396,9 @@ function setupShootModal() {
     const time     = document.getElementById('s-time').value || null;
     const client   = document.getElementById('s-client').value.trim();
     const notes    = document.getElementById('s-notes').value.trim();
-    const assignee_id = document.getElementById('s-assignee').value || null;
+    const assigneeVal = document.getElementById('s-assignee').value;
+    const assignee_id = assigneeVal === '__external' ? null : (assigneeVal || null);
+    const external_assignee = assigneeVal === '__external' ? document.getElementById('s-external').value.trim() : '';
 
     if (!date) return;
 
@@ -432,7 +445,7 @@ function setupShootModal() {
       ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
       : 'Planned';
 
-    const row = { date, time, type, client, location, notes, assignee_id, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
+    const row = { date, time, type, client, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
     if (editingShoot) {
       await supabase.from('shoots').update(row).eq('id', editingShoot.id);

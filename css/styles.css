@@ -956,4 +956,123 @@ body { background: var(--cream); }
   align-items: center;
   justify-content: center;
 }
+/* ========== DATE GROUPED VIEW ========== */
+.date-group {
+  margin-bottom: 20px;
+}
+.date-heading {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--bark);
+  padding: 8px 4px;
+  position: sticky;
+  top: 0;
+  background: var(--cream);
+  z-index: 5;
+}
+.shoot-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.shoot-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ========== OWN SHOOT HIGHLIGHT ========== */
+.shoot-mine {
+  background: var(--terracotta-light) !important;
+  border-left-width: 5px !important;
+}
+
+/* ========== TYPE STATUS ROWS ========== */
+.type-status-rows {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.type-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.type-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--espresso);
+  min-width: 60px;
+}
+.type-status-pills {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+}
+.type-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 10px;
+  background: var(--sand);
+  color: var(--stone);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+.type-pill-done {
+  background: var(--sand-dark);
+  color: var(--bark);
+  text-decoration: line-through;
+  opacity: .5;
+}
+.type-pill-active {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+.type-pill-active.status-Planned { background: var(--blue-bg); color: var(--blue); }
+.type-pill-active.status-Shot { background: var(--amber-bg); color: var(--amber); }
+.type-pill-active.status-Edited { background: var(--plum-bg); color: var(--plum); }
+.type-pill-active.status-Posted { background: var(--sage-bg); color: var(--sage); }
+
+.type-advance-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sand);
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--terracotta);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.type-advance-btn:active {
+  background: var(--terracotta-light);
+  border-color: var(--terracotta);
+}
+.type-done-check {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sage-bg);
+  color: var(--sage);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 </style>
