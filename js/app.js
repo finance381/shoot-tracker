@@ -158,7 +158,6 @@ function showApp() {
   setupToast();
   setupReminders();
   registerSW();
-  setupAutoRefresh();
   setupPullToRefresh();
 }
 
@@ -474,14 +473,6 @@ function setupReminders() {
   }, 5 * 60000);
 }
 
-// ===== AUTO REFRESH =====
-function setupAutoRefresh() {
-  setInterval(() => {
-    pages[currentPage]();
-    const member = getMember();
-    document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
-  }, 30000);
-}
 
 // ===== SERVICE WORKER =====
 function registerSW() {
