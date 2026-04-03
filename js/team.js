@@ -82,19 +82,13 @@ function openTeamModal(member = null) {
           <label>Email (optional)</label>
           <input type="email" id="tm-email" value="${member?.email || ''}" placeholder="their@email.com">
         </div>
-        ${!isEdit ? `
-          <div class="form-group">
-            <label>Temporary password *</label>
-            <input type="text" id="tm-pass" placeholder="They can change it later">
-          </div>
-        ` : ''}
         <div id="tm-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
         ${isEdit ? `<button class="btn-danger" id="tm-delete">Remove</button>` : ''}
         <span class="spacer"></span>
         <button class="btn-secondary" id="tm-cancel">Cancel</button>
-        <button class="btn-primary" id="tm-save">${isEdit ? 'Save' : 'Add & Create Login'}</button>
+        <button class="btn-primary" id="tm-save">${isEdit ? 'Save' : 'Add Member'}</button>
       </div>
     </div>
   `;
@@ -124,38 +118,17 @@ function openTeamModal(member = null) {
         await supabase.from('team_members').update({ name, role, phone }).eq('id', member.id);
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Member updated' }));
       } else {
-        const pass = overlay.querySelector('#tm-pass').value;
-        if (!pass || pass.length < 6) {
-          errEl.textContent = 'Password must be at least 6 characters';
-          errEl.classList.remove('hidden');
-          return;
-        }
-
-        // Create auth account via signUp (we'll sign back in as admin after)
-        // Note: this signs out the admin — we re-auth after
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: fakeEmail, password: pass,
-          options: { data: { name, phone } }
-        });
-        if (signUpErr) throw signUpErr;
-
-        const newAuthId = signUpData.user?.id || null;
         await supabase.from('team_members').insert({
-          auth_id: newAuthId,
           name, role, email: fakeEmail, phone,
           is_admin: false
         });
 
-        window.dispatchEvent(new CustomEvent('toast', { detail: 'Member added — they can log in now' }));
-
-        // The admin got signed out because signUp creates a new session.
-        // Prompt admin to re-login.
-        alert('You will be logged out briefly because a new account was created. Please log in again.');
-        await supabase.auth.signOut();
-        location.reload();
+        close();
+        render();
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Member added — ask them to sign up' }));
         return;
       }
       close();
