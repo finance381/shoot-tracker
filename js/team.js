@@ -75,12 +75,12 @@ function openTeamModal(member = null) {
           <input type="text" id="tm-role" value="${member?.role || ''}" placeholder="e.g. Photographer, Editor">
         </div>
         <div class="form-group">
-          <label>Email *</label>
-          <input type="email" id="tm-email" value="${member?.email || ''}" placeholder="their@email.com" ${isEdit ? 'disabled' : ''}>
+          <label>Phone (login number) *</label>
+          <input type="tel" id="tm-phone" value="${member?.phone || ''}" placeholder="9876543210" ${isEdit ? 'disabled' : ''}>
         </div>
         <div class="form-group">
-          <label>Phone</label>
-          <input type="tel" id="tm-phone" value="${member?.phone || ''}" placeholder="+91 98765 43210">
+          <label>Email (optional)</label>
+          <input type="email" id="tm-email" value="${member?.email || ''}" placeholder="their@email.com">
         </div>
         ${!isEdit ? `
           <div class="form-group">
@@ -113,8 +113,8 @@ function openTeamModal(member = null) {
     const phone = overlay.querySelector('#tm-phone').value.trim();
     const errEl = overlay.querySelector('#tm-error');
 
-    if (!name || !email) {
-      errEl.textContent = 'Name and email are required';
+    if (!name || !phone) {
+      errEl.textContent = 'Name and phone number are required';
       errEl.classList.remove('hidden');
       return;
     }
@@ -133,17 +133,19 @@ function openTeamModal(member = null) {
 
         // Create auth account via signUp (we'll sign back in as admin after)
         // Note: this signs out the admin — we re-auth after
+        const { phoneToEmail } = await import('./auth.js');
+        const fakeEmail = phoneToEmail(phone);
+
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email, password: pass,
-          options: { data: { name } }
+          email: fakeEmail, password: pass,
+          options: { data: { name, phone } }
         });
         if (signUpErr) throw signUpErr;
 
-        // Insert team_members row with the new user's auth id
         const newAuthId = signUpData.user?.id || null;
         await supabase.from('team_members').insert({
           auth_id: newAuthId,
-          name, role, email, phone,
+          name, role, email: fakeEmail, phone,
           is_admin: false
         });
 

@@ -74,15 +74,22 @@ async function loadMember() {
   }
 }
 
-export async function login(email, password) {
+export function phoneToEmail(phone) {
+  const digits = phone.replace(/\D/g, '');
+  return `${digits}@shoottracker.app`;
+}
+
+export async function login(phone, password) {
+  const email = phoneToEmail(phone);
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
 }
 
-export async function signup(email, password, name) {
+export async function signup(phone, password, name) {
+  const email = phoneToEmail(phone);
   const { error } = await supabase.auth.signUp({
     email, password,
-    options: { data: { name } }
+    options: { data: { name, phone } }
   });
   if (error) throw error;
 }

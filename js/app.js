@@ -48,12 +48,12 @@ function showAuth() {
   });
 
   submitBtn.addEventListener('click', async () => {
-    const email = document.getElementById('auth-email').value.trim();
+    const phone = document.getElementById('auth-phone').value.trim();
     const pass  = document.getElementById('auth-pass').value;
     errorEl.classList.add('hidden');
 
-    if (!email || !pass) {
-      errorEl.textContent = 'Email and password are required';
+    if (!phone || !pass) {
+      errorEl.textContent = 'Phone number and password are required';
       errorEl.classList.remove('hidden');
       return;
     }
@@ -63,10 +63,10 @@ function showAuth() {
 
     try {
       if (isSignup) {
-        const name = document.getElementById('auth-name').value.trim() || email.split('@')[0];
-        await signup(email, pass, name);
+        const name = document.getElementById('auth-name').value.trim() || phone;
+        await signup(phone, pass, name);
       } else {
-        await login(email, pass);
+        await login(phone, pass);
       }
       // Re-init to load member profile
       await initAuth();
