@@ -5,6 +5,8 @@ import { render as renderCalendar } from './calendar.js';
 import { render as renderShoots } from './shoots.js';
 import { render as renderTeam } from './team.js';
 
+const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
+
 const pages = {
   dashboard: renderDashboard,
   calendar:  renderCalendar,
@@ -156,9 +158,9 @@ function showApp() {
   setupChangePassword();
   setupShootModal();
   setupToast();
-  setupReminders();
   registerSW();
   setupPullToRefresh();
+  subscribePush();
 }
 
 // ===== NAVIGATION =====
@@ -440,39 +442,6 @@ function setupToast() {
   });
 }
 
-// ===== REMINDERS =====
-function setupReminders() {
-  if (!('Notification' in window) || Notification.permission === 'denied') return;
-
-  if (Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission(), 5000);
-  }
-
-  setInterval(async () => {
-    if (Notification.permission !== 'granted') return;
-    const now = new Date();
-    const soon = new Date(now.getTime() + 60 * 60000);
-    const today = now.toISOString().slice(0, 10);
-
-    const { data: shoots } = await supabase
-      .from('shoots')
-      .select('*')
-      .eq('date', today)
-      .eq('status', 'Planned')
-      .not('time', 'is', null);
-
-    (shoots || []).forEach(s => {
-      const shootTime = new Date(`${s.date}T${s.time}`);
-      if (shootTime > now && shootTime <= soon) {
-        new Notification('📸 Shoot in 1 hour', {
-          body: `${s.type}${s.client ? ' — ' + s.client : ''} at ${s.time}${s.location ? ' · ' + s.location : ''}`,
-          tag: s.id
-        });
-      }
-    });
-  }, 5 * 60000);
-}
-
 
 // ===== SERVICE WORKER =====
 function registerSW() {
@@ -530,6 +499,39 @@ function setupPullToRefresh() {
       }, 500);
     }
   });
+}
+
+async function subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      const key = Uint8Array.from(atob(VAPID_PUBLIC_KEY.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: key
+      });
+    }
+
+    const member = getMember();
+    if (!member) return;
+
+    const json = sub.toJSON();
+    await supabase.from('push_subscriptions').upsert({
+      member_id: member.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth
+    }, { onConflict: 'endpoint' });
+  } catch (err) {
+    console.warn('Push subscription failed:', err);
+  }
 }
 
 // ===== BOOT =====

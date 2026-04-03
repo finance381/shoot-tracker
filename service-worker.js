@@ -46,3 +46,23 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match(e.request))
   );
 });
+
+self.addEventListener('push', (e) => {
+  const data = e.data ? e.data.json() : {};
+  e.waitUntil(
+    self.registration.showNotification(data.title || '📸 Shoot Tracker', {
+      body: data.body || '',
+      icon: './icons/pwa-192.png',
+      badge: './icons/pwa-192.png',
+      tag: data.tag || 'shoot-notification',
+      data: { url: './' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.openWindow(e.notification.data?.url || './')
+  );
+});
