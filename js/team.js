@@ -142,42 +142,43 @@ function openTeamModal(member = null) {
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        // Step 1: Save admin tokens
-        const { data: { session: adminSession } } = await supabase.auth.getSession();
-        const adminTokens = {
-          access_token: adminSession.access_token,
-          refresh_token: adminSession.refresh_token
-        };
+        // Step 1: Insert row while admin session is guaranteed active
+        const { data: newRow, error: insertErr } = await supabase
+          .from('team_members')
+          .insert({ name, role, email: fakeEmail, phone, is_admin: false })
+          .select()
+          .single();
+        if (insertErr) throw insertErr;
 
-        // Step 2: Create auth account (this switches session)
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: fakeEmail, password: pass,
-          options: { data: { name, phone } }
-        });
-        if (signUpErr) throw signUpErr;
+        // Step 2: Create auth account in background
+        // signUp hijacks session — we handle that after
+        try {
+          const { data: { session: adminSession } } = await supabase.auth.getSession();
+          const adminTokens = {
+            access_token: adminSession.access_token,
+            refresh_token: adminSession.refresh_token
+          };
 
-        // Step 3: Restore admin session
-        await supabase.auth.setSession(adminTokens);
-        // Wait for session to settle
-        await new Promise(r => setTimeout(r, 500));
-
-        // Step 4: Insert team member row
-        const { error: insertErr } = await supabase.from('team_members').insert({
-          auth_id: signUpData.user?.id || null,
-          name, role, email: fakeEmail, phone,
-          is_admin: false
-        });
-
-        // If insert fails due to session, try once more
-        if (insertErr) {
-          await supabase.auth.setSession(adminTokens);
-          await new Promise(r => setTimeout(r, 500));
-          const { error: retryErr } = await supabase.from('team_members').insert({
-            auth_id: signUpData.user?.id || null,
-            name, role, email: fakeEmail, phone,
-            is_admin: false
+          const { data: signUpData } = await supabase.auth.signUp({
+            email: fakeEmail, password: pass,
+            options: { data: { name, phone } }
           });
-          if (retryErr) throw retryErr;
+
+          // Restore admin — don't await, just fire
+          supabase.auth.setSession(adminTokens);
+
+          // Link auth_id if we got one
+          if (signUpData?.user?.id) {
+            supabase.from('team_members')
+              .update({ auth_id: signUpData.user.id })
+              .eq('id', newRow.id)
+              .then(() => {})
+              .catch(() => {});
+          }
+        } catch (authErr) {
+          // Auth creation failed but team row exists
+          // User will be linked on first login via loadMember
+          console.warn('Auth account creation failed, will link on first login:', authErr.message);
         }
 
         close();
