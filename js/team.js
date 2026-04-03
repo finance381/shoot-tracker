@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.js';
+import { supabase } from './supabase.js';
 import { isAdmin } from './auth.js';
 
 const container = () => document.getElementById('page-team');
@@ -82,19 +82,13 @@ function openTeamModal(member = null) {
           <label>Email (optional)</label>
           <input type="email" id="tm-email" value="${member?.email || ''}" placeholder="their@email.com">
         </div>
-        ${!isEdit ? `
-          <div class="form-group">
-            <label>Password *</label>
-            <input type="password" id="tm-pass" placeholder="Min 6 characters">
-          </div>
-        ` : ''}
         <div id="tm-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
         ${isEdit ? `<button class="btn-danger" id="tm-delete">Remove</button>` : ''}
         <span class="spacer"></span>
         <button class="btn-secondary" id="tm-cancel">Cancel</button>
-        <button class="btn-primary" id="tm-save">${isEdit ? 'Save' : 'Add & Create Login'}</button>
+        <button class="btn-primary" id="tm-save">${isEdit ? 'Save' : 'Add Member'}</button>
       </div>
     </div>
   `;
@@ -130,46 +124,17 @@ function openTeamModal(member = null) {
         render();
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Member updated' }));
       } else {
-        const pass = overlay.querySelector('#tm-pass').value;
-        if (!pass || pass.length < 6) {
-          errEl.textContent = 'Password must be at least 6 characters';
-          errEl.classList.remove('hidden');
-          saveBtn.disabled = false;
-          saveBtn.textContent = 'Add & Create Login';
-          return;
-        }
-
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
 
-        // Step 1: Create auth user via raw fetch (does NOT touch admin session)
-        const authRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY
-          },
-          body: JSON.stringify({
-            email: fakeEmail,
-            password: pass,
-            data: { name, phone }
-          })
-        });
-        const authData = await authRes.json();
-        if (!authRes.ok) throw new Error(authData.msg || authData.error_description || 'Failed to create login');
-        const newAuthId = authData.id || null;
-
-        // Step 2: Insert team member row (admin session intact)
         const { error: insertErr } = await supabase.from('team_members').insert({
-          auth_id: newAuthId,
-          name, role, email: fakeEmail, phone,
-          is_admin: false
+          name, role, email: fakeEmail, phone, is_admin: false
         });
         if (insertErr) throw insertErr;
 
         close();
         render();
-        window.dispatchEvent(new CustomEvent('toast', { detail: 'Member added — they can log in now' }));
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Member added — they\'ll set a password on first login' }));
       }
     } catch (err) {
       console.error('Save member error:', err);

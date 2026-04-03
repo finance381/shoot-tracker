@@ -35,11 +35,80 @@ function showAuth() {
 
   const submitBtn  = document.getElementById('auth-submit');
   const errorEl    = document.getElementById('auth-error');
+  const setupLink  = document.getElementById('auth-setup-link');
   if (!submitBtn || !errorEl) return;
 
   // Prevent duplicate listeners on repeat calls
   const newBtn = submitBtn.cloneNode(true);
   submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+
+  if (setupLink) {
+    const newLink = setupLink.cloneNode(true);
+    setupLink.parentNode.replaceChild(newLink, setupLink);
+
+    newLink.addEventListener('click', async () => {
+      const phone = document.getElementById('auth-phone').value.trim();
+      const pass  = document.getElementById('auth-pass').value;
+      errorEl.classList.add('hidden');
+
+      if (!phone || !pass) {
+        errorEl.textContent = 'Enter your phone number and choose a password first';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      if (pass.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      newBtn.disabled = true;
+      newBtn.textContent = 'Setting up…';
+
+      try {
+        // Check if phone exists in team
+        const { phoneToEmail } = await import('./auth.js');
+        const fakeEmail = phoneToEmail(phone);
+        const { data: member } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('email', fakeEmail)
+          .maybeSingle();
+
+        if (!member) {
+          errorEl.textContent = 'This phone number hasn\'t been added to the team yet. Ask your admin.';
+          errorEl.classList.remove('hidden');
+          newBtn.disabled = false;
+          newBtn.textContent = 'Log in';
+          return;
+        }
+
+        // Create auth account
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: fakeEmail, password: pass,
+          options: { data: { phone } }
+        });
+        if (signUpErr) throw signUpErr;
+
+        // Auto-login
+        await login(phone, pass);
+        await initAuth();
+        if (getMember()) {
+          showApp();
+        } else {
+          errorEl.textContent = 'Account created but login failed. Try logging in.';
+          errorEl.classList.remove('hidden');
+          newBtn.disabled = false;
+          newBtn.textContent = 'Log in';
+        }
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+        newBtn.disabled = false;
+        newBtn.textContent = 'Log in';
+      }
+    });
+  }
 
   newBtn.addEventListener('click', async () => {
     const phone = document.getElementById('auth-phone').value.trim();
