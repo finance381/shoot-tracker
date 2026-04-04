@@ -208,7 +208,7 @@ function renderDateGrouped(el, filtered, allShoots, me) {
 
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async (e) => {
-      if (e.target.closest('.type-advance-btn')) return;
+      if (e.target.closest('.type-advance-btn') || e.target.closest('.type-revert-btn')) return;
       const { data: shoot } = await supabase
         .from('shoots')
         .select('*')
@@ -216,7 +216,9 @@ function renderDateGrouped(el, filtered, allShoots, me) {
         .maybeSingle();
       if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
     });
-    // Type revert buttons
+  });
+
+  // Type revert buttons
   el.querySelectorAll('.type-revert-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -225,20 +227,27 @@ function renderDateGrouped(el, filtered, allShoots, me) {
       const newStatus = btn.dataset.to;
       const shoot = allShoots.find(s => s.id === shootId);
       if (!shoot) return;
+
+      btn.disabled = true;
       const oldStatus = shoot.type_statuses[typeName];
       const updatedTS = { ...shoot.type_statuses, [typeName]: newStatus };
       const overallStatus = STATUS_ORDER[Math.min(...Object.values(updatedTS).map(st => STATUS_ORDER.indexOf(st)))];
-      await supabase.from('shoots').update({ type_statuses: updatedTS, status: overallStatus }).eq('id', shootId);
+
+      const { data: updated } = await supabase.from('shoots').update({
+        type_statuses: updatedTS, status: overallStatus
+      }).eq('id', shootId).select().single();
+
       await logStatusChange(shootId, typeName, oldStatus, newStatus);
-      shoot.type_statuses = updatedTS;
-      shoot.status = overallStatus;
-      const teamMember = teamCache.find(t => t.id === shoot.assignee_id);
-      shoot.assignee_name = teamMember?.name || '';
-      import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(shoot, 'upsert'));
+
+      if (updated) {
+        const teamMember = teamCache.find(t => t.id === updated.assignee_id);
+        updated.assignee_name = teamMember?.name || '';
+        import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(updated, 'upsert'));
+      }
+
       render();
       window.dispatchEvent(new CustomEvent('toast', { detail: `${typeName} ← ${newStatus}` }));
     });
-  });
   });
 
   el.querySelectorAll('.type-advance-btn').forEach(btn => {
@@ -249,18 +258,25 @@ function renderDateGrouped(el, filtered, allShoots, me) {
       const newStatus = btn.dataset.to;
       const shoot = allShoots.find(s => s.id === shootId);
       if (!shoot) return;
+
+      btn.disabled = true;
       const oldStatus = shoot.type_statuses[typeName];
       const updatedTS = { ...shoot.type_statuses, [typeName]: newStatus };
       const overallStatus = STATUS_ORDER[Math.min(...Object.values(updatedTS).map(st => STATUS_ORDER.indexOf(st)))];
-      await supabase.from('shoots').update({ type_statuses: updatedTS, status: overallStatus }).eq('id', shootId);
-      await logStatusChange(shootId, typeName, oldStatus, newStatus);
-      shoot.type_statuses = updatedTS;
-      shoot.status = overallStatus;
 
-      // Sync to Google Sheets
-      const teamMember = teamCache.find(t => t.id === shoot.assignee_id);
-      shoot.assignee_name = teamMember?.name || '';
-      import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(shoot, 'upsert'));
+      // Await DB update first
+      const { data: updated } = await supabase.from('shoots').update({
+        type_statuses: updatedTS, status: overallStatus
+      }).eq('id', shootId).select().single();
+
+      await logStatusChange(shootId, typeName, oldStatus, newStatus);
+
+      // Sync to sheet with confirmed data
+      if (updated) {
+        const teamMember = teamCache.find(t => t.id === updated.assignee_id);
+        updated.assignee_name = teamMember?.name || '';
+        import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(updated, 'upsert'));
+      }
 
       render();
       window.dispatchEvent(new CustomEvent('toast', { detail: `${typeName} → ${newStatus}` }));
@@ -306,8 +322,10 @@ function renderShootCard(s, me) {
               const tStatus = ts[t];
               const nextIdx = STATUS_ORDER.indexOf(tStatus) + 1;
               const nextS = nextIdx < STATUS_ORDER.length ? STATUS_ORDER[nextIdx] : null;
+              const prevIdx = STATUS_ORDER.indexOf(tStatus) - 1;
               return `
                 <div class="type-status-row">
+                  ${prevIdx >= 0 ? `<button class="type-revert-btn" data-sid="${s.id}" data-type="${t}" data-to="${STATUS_ORDER[prevIdx]}">←</button>` : '<span class="type-btn-spacer"></span>'}
                   <span class="type-name">${t}</span>
                   <div class="type-status-pills">
                     ${STATUS_ORDER.map(st => {
@@ -316,8 +334,7 @@ function renderShootCard(s, me) {
                       return `<span class="type-pill ${isCurrent ? 'type-pill-active status-' + st : ''} ${isPast ? 'type-pill-done' : ''}">${st}</span>`;
                     }).join('')}
                   </div>
-                  ${STATUS_ORDER.indexOf(tStatus) > 0 ? `<button class="type-revert-btn" data-sid="${s.id}" data-type="${t}" data-to="${STATUS_ORDER[STATUS_ORDER.indexOf(tStatus) - 1]}">←</button>` : ''}
-                  ${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}
+                  ${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}
                 </div>`;
             }).join('')}
           </div>

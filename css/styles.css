@@ -1345,3 +1345,7 @@ body { background: var(--cream); }
   border-color: #C0392B;
   color: #C0392B;
 }
+.type-btn-spacer {
+  width: 28px;
+  flex-shrink: 0;
+}
