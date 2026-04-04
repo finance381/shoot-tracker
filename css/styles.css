@@ -185,6 +185,12 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .top-title { font-size: 18px; font-weight: 800; }
 .top-sub { font-size: 12px; color: var(--stone); font-weight: 500; }
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
 /* ========== BOTTOM NAV ========== */
 #bottom-nav {

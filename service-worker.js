@@ -32,10 +32,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET and Supabase API calls
-  if (e.request.method !== 'GET' || url.hostname.includes('supabase')) return;
+  // Skip non-GET, non-http(s), and Supabase API calls
+  if (e.request.method !== 'GET' || !url.protocol.startsWith('http') || url.hostname.includes('supabase')) return;
 
-  // Network-first: try fresh, fall back to cache (offline support)
   e.respondWith(
     fetch(e.request)
       .then(response => {
