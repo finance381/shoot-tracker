@@ -6,7 +6,7 @@ let renderGen = 0;
 
 // Default to current month
 let dateFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-let dateTo = new Date().toISOString().slice(0, 10);
+let dateTo = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10);
 let filterMemberId = 'All';
 
 const container = () => document.getElementById('page-reports');

@@ -325,8 +325,12 @@ function renderShootCard(s, me) {
               const prevIdx = STATUS_ORDER.indexOf(tStatus) - 1;
               return `
                 <div class="type-status-row">
-                  ${prevIdx >= 0 ? `<button class="type-revert-btn" data-sid="${s.id}" data-type="${t}" data-to="${STATUS_ORDER[prevIdx]}">←</button>` : '<span class="type-btn-spacer"></span>'}
-                  <span class="type-name">${t}</span>
+                  <div class="type-row-top">
+                    ${prevIdx >= 0 ? `<button class="type-revert-btn" data-sid="${s.id}" data-type="${t}" data-to="${STATUS_ORDER[prevIdx]}">←</button>` : '<span class="type-btn-spacer"></span>'}
+                    <span class="type-name">${t}</span>
+                    <span class="type-current-label status-${tStatus}">${tStatus}</span>
+                    ${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}
+                  </div>
                   <div class="type-status-pills">
                     ${STATUS_ORDER.map(st => {
                       const isCurrent = st === tStatus;
@@ -334,7 +338,6 @@ function renderShootCard(s, me) {
                       return `<span class="type-pill ${isCurrent ? 'type-pill-active status-' + st : ''} ${isPast ? 'type-pill-done' : ''}">${st}</span>`;
                     }).join('')}
                   </div>
-                  ${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}
                 </div>`;
             }).join('')}
           </div>

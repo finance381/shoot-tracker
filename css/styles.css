@@ -1003,8 +1003,26 @@ body { background: var(--cream); }
 }
 .type-status-row {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+.type-status-row + .type-status-row {
+  border-top: 1px solid var(--border);
+}
+.type-row-top {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+.type-current-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-left: auto;
 }
 .type-name {
   font-size: 13px;
@@ -1015,7 +1033,7 @@ body { background: var(--cream); }
 .type-status-pills {
   display: flex;
   gap: 3px;
-  flex: 1;
+  padding-left: 36px;
 }
 .type-pill {
   font-size: 9px;
@@ -1347,5 +1365,6 @@ body { background: var(--cream); }
 }
 .type-btn-spacer {
   width: 28px;
+  height: 28px;
   flex-shrink: 0;
 }
