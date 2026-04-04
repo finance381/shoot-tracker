@@ -33,7 +33,13 @@ export async function render() {
   const counts = { pending: pending.length, accepted: accepted.length, rejected: rejected.length };
   const filtered = filterTab === 'pending' ? pending : filterTab === 'accepted' ? accepted : rejected;
 
+  const requestFormURL = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/') + 'request.html';
+
   el.innerHTML = `
+    <div class="req-share-bar">
+      <span class="req-share-label">Share request form</span>
+      <button class="req-copy-btn" id="copy-req-link">📋 Copy Link</button>
+    </div>
     <div class="requests-tabs">
       <button class="req-tab ${filterTab === 'pending' ? 'active' : ''}" data-tab="pending">
         Pending ${counts.pending > 0 ? `<span class="req-badge">${counts.pending}</span>` : ''}
@@ -51,6 +57,18 @@ export async function render() {
   // Tab handlers
   el.querySelectorAll('.req-tab').forEach(btn => {
     btn.addEventListener('click', () => { filterTab = btn.dataset.tab; render(); });
+  });
+
+  // Copy link
+  el.querySelector('#copy-req-link')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(requestFormURL);
+      const btn = el.querySelector('#copy-req-link');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = '📋 Copy Link'; }, 2000);
+    } catch {
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Could not copy — long press the link instead' }));
+    }
   });
 
   // Accept/reject handlers

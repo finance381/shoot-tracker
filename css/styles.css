@@ -1527,3 +1527,34 @@ body { background: var(--cream); }
 .req-status-pending { background: var(--amber-bg); color: var(--amber); }
 .req-status-accepted { background: var(--sage-bg); color: var(--sage); }
 .req-status-rejected { background: #FFF0F0; color: #C0392B; }
+.req-share-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.req-share-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bark);
+}
+.req-copy-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--terracotta-light);
+  color: var(--terracotta-dark);
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.req-copy-btn:active {
+  background: var(--terracotta);
+  color: #fff;
+}
