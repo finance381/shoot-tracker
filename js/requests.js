@@ -114,7 +114,7 @@ function renderRequestCard(r, team) {
         ${r.shoot_type ? `<span class="tag tag-type">${r.shoot_type.replace(/,/g, ', ')}</span>` : ''}
         ${r.department ? r.department.split(',').map(d => `<span class="tag tag-dept">${d.trim()}</span>`).join('') : ''}
       </div>
-      <div class="req-card-function">${r.function || ''}</div>
+      <div class="req-card-function">${r.function_name || ''}</div>
       ${r.location ? `<div class="req-card-loc">📍 ${r.location}</div>` : ''}
       ${r.notes ? `<div class="req-card-notes">${r.notes}</div>` : ''}
       ${r.status === 'rejected' && r.reject_reason ? `<div class="req-card-reject">Rejected: ${r.reject_reason}</div>` : ''}
@@ -150,7 +150,7 @@ async function openAcceptModal(req, team) {
           <strong>${req.requested_by}</strong> requested a shoot
           on <strong>${dateStr}</strong>
           ${req.time ? ' at <strong>' + fmtTime(req.time) + '</strong>' : ''}
-          ${req.function ? ' — <strong>' + req.function + '</strong>' : ''}
+          ${req.function_name ? ' — <strong>' + req.function_name + '</strong>' : ''}
           ${req.location ? ' · 📍 ' + req.location : ''}
           ${req.notes ? '<br><span style="font-size:12px;color:var(--stone)">' + req.notes + '</span>' : ''}
         </div>
@@ -187,7 +187,7 @@ async function openAcceptModal(req, team) {
 
         <div class="form-group">
           <label>Function</label>
-          <input type="text" id="acc-function" value="${req.function || ''}">
+          <input type="text" id="acc-function" value="${req.function_name || ''}">
         </div>
 
         <div class="form-group">
@@ -341,7 +341,7 @@ function openDetailModal(req, team) {
         <div class="req-detail-row"><strong>Date</strong><span>${dateStr}</span></div>
         ${req.time ? `<div class="req-detail-row"><strong>Time</strong><span>${fmtTime(req.time)}</span></div>` : ''}
         <div class="req-detail-row"><strong>Type</strong><span>${(req.shoot_type || '').replace(/,/g, ', ')}</span></div>
-        ${req.function ? `<div class="req-detail-row"><strong>Function</strong><span>${req.function}</span></div>` : ''}
+        ${req.function_name ? `<div class="req-detail-row"><strong>Function</strong><span>${req.function_name}</span></div>` : ''}
         ${req.department ? `<div class="req-detail-row"><strong>Department</strong><span>${req.department.replace(/,/g, ', ')}</span></div>` : ''}
         ${req.location ? `<div class="req-detail-row"><strong>Location</strong><span>${req.location}</span></div>` : ''}
         ${req.notes ? `<div class="req-detail-row"><strong>Notes</strong><span>${req.notes}</span></div>` : ''}
