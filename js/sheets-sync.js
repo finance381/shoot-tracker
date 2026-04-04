@@ -23,7 +23,9 @@ export async function syncShoot(shoot, action = 'upsert') {
         category: (shoot.departments || []).join(' + '),
         sales_person: shoot.requested_by || '',
         photographer: shoot.assignee_name || '',
-        remark: [shoot.client, shoot.notes].filter(Boolean).join(' — ')
+        remark: [shoot.client, shoot.notes].filter(Boolean).join(' — '),
+        status: shoot.status || '',
+        type_statuses: shoot.type_statuses || {}
       }
     };
 
