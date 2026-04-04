@@ -328,6 +328,7 @@ function setupShootModal() {
     document.getElementById('s-date').value  = shoot?.date || defaults.date || new Date().toISOString().slice(0, 10);
     document.getElementById('s-time').value  = shoot?.time || '';
     document.getElementById('s-client').value = shoot?.client || '';
+    document.getElementById('s-requested-by').value = shoot?.requested_by || '';
     document.getElementById('s-notes').value = shoot?.notes || '';
 
     const [mastersRes, teamRes] = await Promise.all([
@@ -452,6 +453,7 @@ function setupShootModal() {
     const date     = document.getElementById('s-date').value;
     const time     = document.getElementById('s-time').value || null;
     const client   = document.getElementById('s-client').value.trim();
+    const requested_by = document.getElementById('s-requested-by').value.trim();
     const notes    = document.getElementById('s-notes').value.trim();
     const assigneeVal = document.getElementById('s-assignee').value;
     const assignee_id = assigneeVal === '__external' ? null : (assigneeVal || null);
@@ -495,7 +497,7 @@ function setupShootModal() {
       ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
       : 'Planned';
 
-    const row = { date, time, type, client, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
+    const row = { date, time, type, client, requested_by, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
     if (editingShoot) {
       const { data: updated } = await supabase.from('shoots').update(row).eq('id', editingShoot.id).select().single();
