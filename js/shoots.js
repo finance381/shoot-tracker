@@ -331,13 +331,7 @@ function renderShootCard(s, me) {
                     <span class="type-current-label status-${tStatus}">${tStatus}</span>
                     ${nextS ? `<button class="type-advance-btn" data-sid="${s.id}" data-type="${t}" data-to="${nextS}">→</button>` : '<span class="type-done-check">✓</span>'}
                   </div>
-                  <div class="type-status-pills">
-                    ${STATUS_ORDER.map(st => {
-                      const isCurrent = st === tStatus;
-                      const isPast = STATUS_ORDER.indexOf(st) < STATUS_ORDER.indexOf(tStatus);
-                      return `<span class="type-pill ${isCurrent ? 'type-pill-active status-' + st : ''} ${isPast ? 'type-pill-done' : ''}">${st}</span>`;
-                    }).join('')}
-                  </div>
+                  <div class="type-progress-bar"><div class="type-progress-fill progress-${tStatus}" style="width:${{Planned:0,Shot:40,Editing:75,Posted:100}[tStatus] || 0}%"></div></div>
                 </div>`;
             }).join('')}
           </div>

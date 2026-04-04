@@ -104,15 +104,24 @@ export async function render() {
   });
 }
 
+const PHASE_WEIGHT = { Planned: 0, Shot: 40, Editing: 75, Posted: 100 };
+
+function getShootCompletion(s) {
+  const ts = s.type_statuses || {};
+  const statuses = Object.keys(ts).length > 0 ? Object.values(ts) : [s.status];
+  const total = statuses.reduce((sum, st) => sum + (PHASE_WEIGHT[st] || 0), 0);
+  return Math.round(total / statuses.length);
+}
+
 function getStatusCounts(shoots) {
-  const counts = { Planned: 0, Shot: 0, Editing: 0, Posted: 0, total: 0 };
+  const counts = { Planned: 0, Shot: 0, Editing: 0, Posted: 0, total: 0, avgCompletion: 0 };
   shoots.forEach(s => {
-    const ts = s.type_statuses || {};
-    const statuses = Object.keys(ts).length > 0 ? Object.values(ts) : [s.status];
-    // Use overall status for counting
     counts[s.status] = (counts[s.status] || 0) + 1;
     counts.total++;
   });
+  if (counts.total > 0) {
+    counts.avgCompletion = Math.round(shoots.reduce((sum, s) => sum + getShootCompletion(s), 0) / counts.total);
+  }
   return counts;
 }
 
@@ -127,16 +136,16 @@ function renderSummaryCards(shoots, memberId) {
         <div class="stat-label">Total Shoots</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${c.Shot || 0}</div>
-        <div class="stat-label">Shot</div>
+        <div class="stat-value">${c.avgCompletion}%</div>
+        <div class="stat-label">Avg Completion</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">${c.Editing || 0}</div>
-        <div class="stat-label">Editing</div>
+        <div class="stat-label">In Editing</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">${c.Posted || 0}</div>
-        <div class="stat-label">Posted</div>
+        <div class="stat-label">Fully Posted</div>
       </div>
     </div>
   `;
@@ -171,7 +180,7 @@ function renderMemberTable(shoots, team, logs, memberId) {
     }
 
     const completionRate = counts.total > 0
-      ? Math.round((counts.Posted / counts.total) * 100) + '%'
+      ? Math.round(memberShoots.reduce((sum, s) => sum + getShootCompletion(s), 0) / counts.total) + '%'
       : '—';
 
     return `
