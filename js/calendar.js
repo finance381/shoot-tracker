@@ -7,16 +7,26 @@ let viewMonth = new Date().getMonth();
 let viewYear = new Date().getFullYear();
 
 const container = () => document.getElementById('page-calendar');
+let renderGen = 0;
 
 export async function render() {
+  const myGen = ++renderGen;
   const el = container();
   if (!el.querySelector('.cal-grid')) {
     el.innerHTML = '<div class="page-loader"><div class="skeleton-card short"></div><div class="skeleton-card" style="height:300px"></div></div>';
   }
-  const { data: shoots } = await supabase.from('shoots').select('id, date, status, type, client');
-  const all = shoots || [];
-
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const startDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
+  const endDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+  const { data: shoots } = await supabase
+    .from('shoots')
+    .select('id, date, status, type, client')
+    .gte('date', startDate)
+    .lte('date', endDate);
+
+  if (myGen !== renderGen) return;
+
+  const all = shoots || [];
   const startDay = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // Mon=0
   const today = new Date().toISOString().slice(0, 10);
 

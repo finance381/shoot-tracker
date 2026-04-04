@@ -2,10 +2,14 @@ import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
 
 const container = () => document.getElementById('page-dashboard');
+let renderGen = 0;
 
 export async function render() {
+  const myGen = ++renderGen;
   const el = container();
-  el.innerHTML = '<div class="page-loader"><div class="skeleton-grid"><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+  if (!el.querySelector('.stats-grid')) {
+    el.innerHTML = '<div class="page-loader"><div class="skeleton-grid"><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div><div class="skeleton-card stat"></div></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+  }
   const today = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
@@ -14,6 +18,8 @@ export async function render() {
     supabase.from('team_members').select('id, name')
   ]);
 
+  if (myGen !== renderGen) return;
+
   const shoots = shootsRes.data || [];
   const team = teamRes.data || [];
 
@@ -21,7 +27,7 @@ export async function render() {
   const pending  = shoots.filter(s => s.status === 'Shot' || s.status === 'Edited');
   const posted   = shoots.filter(s => s.status === 'Posted');
   const upcoming = shoots
-    .filter(s => s.date >= today && s.status === 'Planned')
+    .filter(s => s.date >= today && s.status !== 'Posted')
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
     .slice(0, 5);
 
@@ -86,8 +92,12 @@ export async function render() {
   `;
 
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
-    card.addEventListener('click', () => {
-      const shoot = shoots.find(s => s.id === card.dataset.id);
+    card.addEventListener('click', async () => {
+      const { data: shoot } = await supabase
+        .from('shoots')
+        .select('*')
+        .eq('id', card.dataset.id)
+        .maybeSingle();
       if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
     });
   });

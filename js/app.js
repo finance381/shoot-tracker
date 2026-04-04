@@ -14,6 +14,8 @@ const pages = {
   team:      renderTeam,
 };
 let currentPage = 'dashboard';
+let renderGeneration = 0;
+let appSetupDone = false;
 
 // ===== INIT =====
 async function init() {
@@ -162,26 +164,34 @@ function showApp() {
   const member = getMember();
   document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
 
+  if (!appSetupDone) {
+    appSetupDone = true;
+    setupNav();
+    setupFab();
+    setupLogout();
+    setupChangePassword();
+    setupShootModal();
+    setupToast();
+    registerSW();
+    setupPullToRefresh();
+    subscribePush();
+  }
+
   navigate('dashboard');
-  setupNav();
-  setupFab();
-  setupLogout();
-  setupChangePassword();
-  setupShootModal();
-  setupToast();
-  registerSW();
-  setupPullToRefresh();
-  subscribePush();
 }
 
 // ===== NAVIGATION =====
 function navigate(page) {
   currentPage = page;
+  renderGeneration++;
+  const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-  pages[page]();
+  pages[page]().catch(err => {
+    if (renderGeneration === gen) console.error('Page render error:', err);
+  });
 }
 
 function setupNav() {

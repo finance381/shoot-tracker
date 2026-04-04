@@ -2,6 +2,7 @@ import { supabase } from './supabase.js';
 
 let currentUser = null;   // auth user
 let currentMember = null;  // team_members row
+let authListenerSet = false;
 
 export function getUser() { return currentUser; }
 export function getMember() { return currentMember; }
@@ -10,7 +11,6 @@ export function isAdmin() { return currentMember?.is_admin === true; }
 export async function initAuth() {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session) {
-    // Stale or invalid session — clear it silently
     currentUser = null;
     currentMember = null;
     return null;
@@ -19,17 +19,19 @@ export async function initAuth() {
   currentUser = session.user;
   await loadMember();
 
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'TOKEN_REFRESHED' && !session) {
-      // Refresh failed — force re-login
-      currentUser = null;
-      currentMember = null;
-      return;
-    }
-    currentUser = session?.user || null;
-    if (currentUser) await loadMember();
-    else currentMember = null;
-  });
+  if (!authListenerSet) {
+    authListenerSet = true;
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        currentUser = null;
+        currentMember = null;
+        return;
+      }
+      currentUser = session?.user || null;
+      if (currentUser) await loadMember();
+      else currentMember = null;
+    });
+  }
 
   return currentUser;
 }

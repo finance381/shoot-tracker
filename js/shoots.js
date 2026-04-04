@@ -14,16 +14,17 @@ async function logStatusChange(shootId, typeName, fromStatus, toStatus) {
   });
 }
 
-const STATUSES = ['Planned', 'Shot', 'Edited', 'Posted'];
 const STATUS_ORDER = ['Planned', 'Shot', 'Edited', 'Posted'];
 
 let filterMember = 'All';
 let filterStatus = 'All';
 let teamCache = [];
+let renderGen = 0;
 
 const container = () => document.getElementById('page-shoots');
 
 export async function render() {
+  const myGen = ++renderGen;
   const el = container();
   if (!el.querySelector('.filter-bar')) {
     el.innerHTML = '<div class="page-loader"><div class="skeleton-card short"></div><div class="skeleton-card short"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
@@ -33,6 +34,8 @@ export async function render() {
     supabase.from('shoots').select('*').order('date', { ascending: true }),
     supabase.from('team_members').select('id, name')
   ]);
+
+  if (myGen !== renderGen) return;
 
   const shoots = shootsRes.data || [];
   teamCache = teamRes.data || [];
@@ -49,7 +52,7 @@ export async function render() {
   });
 
   const memberChips = [{ id: 'All', name: 'All' }, ...teamCache];
-  const statusChips = ['All', ...STATUSES];
+  const statusChips = ['All', ...STATUS_ORDER];
 
   el.innerHTML = `
     <div class="filter-bar">
@@ -144,9 +147,13 @@ function renderDateGrouped(el, filtered, allShoots, me) {
 
   // Click handlers for cards
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
-    card.addEventListener('click', (e) => {
+    card.addEventListener('click', async (e) => {
       if (e.target.closest('.type-advance-btn')) return;
-      const shoot = allShoots.find(s => s.id === card.dataset.id);
+      const { data: shoot } = await supabase
+        .from('shoots')
+        .select('*')
+        .eq('id', card.dataset.id)
+        .maybeSingle();
       if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
     });
   });
