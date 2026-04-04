@@ -1324,3 +1324,24 @@ body { background: var(--cream); }
   font-weight: 700;
   white-space: nowrap;
 }
+.type-revert-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sand);
+  border: 1.5px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--stone);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.type-revert-btn:active {
+  background: #FFF0F0;
+  border-color: #C0392B;
+  color: #C0392B;
+}
