@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#C17837">
+  <title>Request a Shoot</title>
+  <link rel="icon" href="icons/pwa-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F2EA; --white: #FFFFFF; --sand: #EDE6D9; --sand-dark: #DDD4C5;
+      --terracotta: #C17837; --terracotta-dark: #A8622B; --terracotta-light: #F2E0CD;
+      --espresso: #2D2418; --bark: #6B5B4D; --stone: #9C8E80; --border: #E4DCD0;
+      --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: var(--font); background: var(--cream); color: var(--espresso);
+      min-height: 100dvh; display: flex; align-items: flex-start; justify-content: center;
+      padding: 24px 16px; -webkit-font-smoothing: antialiased;
+    }
+    .form-card {
+      width: 100%; max-width: 480px; background: var(--white);
+      border-radius: 20px; padding: 32px 24px; box-shadow: 0 8px 30px rgba(45,36,24,.12);
+    }
+    .form-logo { font-size: 36px; text-align: center; margin-bottom: 6px; }
+    .form-title { text-align: center; font-size: 22px; font-weight: 800; color: var(--espresso); }
+    .form-sub { text-align: center; font-size: 13px; color: var(--stone); margin: 4px 0 24px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-group label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bark); }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--cream); color: var(--espresso); font-size: 15px;
+      font-family: var(--font); outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--terracotta); }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .check-label {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px;
+      border: 1.5px solid var(--border); background: var(--cream); cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--bark); transition: all .15s; user-select: none;
+    }
+    .check-label:has(input:checked) { background: var(--terracotta-light); border-color: var(--terracotta); color: var(--terracotta-dark); }
+    .check-label input[type="checkbox"] { display: none; }
+    .btn-submit {
+      width: 100%; padding: 14px 24px; border-radius: 10px; background: var(--terracotta);
+      color: #fff; border: none; font-weight: 700; font-size: 16px; cursor: pointer;
+      font-family: var(--font); transition: background .2s; margin-top: 8px;
+    }
+    .btn-submit:active { background: var(--terracotta-dark); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+    .form-error { background: #FFF0F0; color: #C0392B; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; display: none; }
+    .form-success {
+      text-align: center; padding: 48px 20px;
+    }
+    .form-success .emoji { font-size: 48px; margin-bottom: 12px; }
+    .form-success h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .form-success p { font-size: 14px; color: var(--stone); line-height: 1.5; }
+    .btn-another {
+      margin-top: 20px; padding: 12px 24px; border-radius: 10px; background: var(--sand);
+      color: var(--bark); border: none; font-weight: 700; font-size: 14px; cursor: pointer;
+      font-family: var(--font);
+    }
+    .loading { text-align: center; padding: 20px; color: var(--stone); font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<div class="form-card" id="form-card">
+  <div class="form-logo">📸</div>
+  <h1 class="form-title">Request a Shoot</h1>
+  <p class="form-sub">Fill in the details and our team will review your request</p>
+
+  <div id="form-error" class="form-error"></div>
+
+  <div id="form-content">
+    <div class="loading" id="form-loading">Loading form…</div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const SUPABASE_URL = 'https://qzttaeeywdepjytyagro.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6dHRhZWV5d2RlcGp5dHlhZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxOTE2ODMsImV4cCI6MjA5MDc2NzY4M30.aijbdeeB6SfY9cExnd6MBVUH0Y_v4_70HUagMfTYEEY';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const formContent = document.getElementById('form-content');
+  const errorEl = document.getElementById('form-error');
+
+  async function init() {
+    const { data: masters } = await supabase.from('masters').select('*').order('sort_order');
+    const items = masters || [];
+
+    const shootTypes = items.filter(m => m.type === 'shoot_type');
+    const locations = items.filter(m => m.type === 'location');
+    const departments = items.filter(m => m.type === 'department');
+
+    formContent.innerHTML = `
+      <div class="form-group">
+        <label>Your Name *</label>
+        <input type="text" id="r-name" placeholder="e.g. Sahaj, Krati">
+      </div>
+      <div class="form-group">
+        <label>Your Phone</label>
+        <input type="tel" id="r-phone" placeholder="e.g. 9876543210">
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Preferred Date *</label>
+          <input type="date" id="r-date">
+        </div>
+        <div class="form-group">
+          <label>Preferred Time</label>
+          <input type="time" id="r-time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Type of Shoot *</label>
+        <div id="r-type-checks" class="checkbox-group">
+          ${shootTypes.map(t => `
+            <label class="check-label">
+              <input type="checkbox" value="${t.label}">
+              <span>${t.label}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Function / Purpose *</label>
+        <input type="text" id="r-function" placeholder="e.g. Product launch, Wedding, Event">
+      </div>
+      <div class="form-group">
+        <label>Department</label>
+        <div id="r-dept-checks" class="checkbox-group">
+          ${departments.map(d => `
+            <label class="check-label">
+              <input type="checkbox" value="${d.label}">
+              <span>${d.label}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <select id="r-location">
+          <option value="">Select location…</option>
+          ${locations.map(l => `<option value="${l.label}">${l.label}</option>`).join('')}
+          <option value="outdoor">🌳 Outdoor (specify in notes)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes / Special Requirements</label>
+        <textarea id="r-notes" rows="3" placeholder="Shot list, wardrobe, props, specific requests…"></textarea>
+      </div>
+      <button class="btn-submit" id="r-submit">Submit Request</button>
+    `;
+
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('r-date').value = tomorrow.toISOString().slice(0, 10);
+
+    document.getElementById('r-submit').addEventListener('click', handleSubmit);
+  }
+
+  async function handleSubmit() {
+    const name = document.getElementById('r-name').value.trim();
+    const phone = document.getElementById('r-phone').value.trim();
+    const date = document.getElementById('r-date').value;
+    const time = document.getElementById('r-time').value || null;
+    const func = document.getElementById('r-function').value.trim();
+    const location = document.getElementById('r-location').value;
+    const notes = document.getElementById('r-notes').value.trim();
+
+    const typeChecks = document.querySelectorAll('#r-type-checks input:checked');
+    const shootType = Array.from(typeChecks).map(c => c.value).join(',');
+
+    const deptChecks = document.querySelectorAll('#r-dept-checks input:checked');
+    const department = Array.from(deptChecks).map(c => c.value).join(',');
+
+    // Validation
+    errorEl.style.display = 'none';
+    if (!name) { showError('Please enter your name'); return; }
+    if (!date) { showError('Please select a date'); return; }
+    if (!shootType) { showError('Please select at least one shoot type'); return; }
+    if (!func) { showError('Please describe the function / purpose'); return; }
+
+    const btn = document.getElementById('r-submit');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    try {
+      const { error } = await supabase.from('shoot_requests').insert({
+        requested_by: name,
+        phone,
+        date,
+        time,
+        shoot_type: shootType,
+        function: func,
+        department,
+        location,
+        notes
+      });
+
+      if (error) throw error;
+
+      // Show success
+      document.getElementById('form-card').innerHTML = `
+        <div class="form-success">
+          <div class="emoji">✅</div>
+          <h2>Request Submitted!</h2>
+          <p>Our photography team will review your request and get back to you. You'll see the shoot appear on the calendar once it's accepted.</p>
+          <button class="btn-another" onclick="location.reload()">Submit Another Request</button>
+        </div>
+      `;
+    } catch (err) {
+      showError(err.message || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Submit Request';
+    }
+  }
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  init();
+</script>
+</body>
+</html>
