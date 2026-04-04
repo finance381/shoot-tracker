@@ -83,9 +83,7 @@ export async function render() {
   });
 }
 
-// ===== DAY DETAIL SHEET =====
 function openDaySheet(date, shoots, team) {
-  // Remove any existing sheet
   document.getElementById('cal-day-sheet')?.remove();
 
   const d = new Date(date + 'T00:00:00');
@@ -138,7 +136,6 @@ function openDaySheet(date, shoots, team) {
   overlay.querySelector('#day-sheet-close').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
-  // Click shoot card → open edit modal with fresh data
   overlay.querySelectorAll('.day-shoot-card').forEach(card => {
     card.addEventListener('click', async () => {
       const { data: shoot } = await supabase
@@ -153,7 +150,6 @@ function openDaySheet(date, shoots, team) {
     });
   });
 
-  // Add shoot button
   overlay.querySelector('#day-add-shoot').addEventListener('click', () => {
     close();
     window.dispatchEvent(new CustomEvent('new-shoot', { detail: { date } }));

@@ -1,4 +1,6 @@
-const CACHE_NAME = 'shoot-tracker-v3';
+// BUMP THIS on every deploy so the browser detects a SW change
+const APP_VERSION = '2026-04-04a';
+const CACHE_NAME = 'shoot-tracker-' + APP_VERSION;
 const SHELL_FILES = [
   './',
   './index.html',
@@ -10,6 +12,8 @@ const SHELL_FILES = [
   './js/calendar.js',
   './js/shoots.js',
   './js/team.js',
+  './js/reports.js',
+  './js/sheets-sync.js',
   './manifest.json'
 ];
 
@@ -35,8 +39,9 @@ self.addEventListener('fetch', e => {
   // Skip non-GET, non-http(s), and Supabase API calls
   if (e.request.method !== 'GET' || !url.protocol.startsWith('http') || url.hostname.includes('supabase')) return;
 
+  // Network-first with HTTP cache bypass
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then(response => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));

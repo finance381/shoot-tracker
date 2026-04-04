@@ -47,7 +47,6 @@ async function loadMember() {
   if (data) {
     currentMember = data;
   } else {
-    // Check if invited by email (auth_id not yet linked)
     if (!currentUser?.email) return;
     const { data: byEmail } = await supabase
       .from('team_members')
@@ -57,7 +56,6 @@ async function loadMember() {
       .maybeSingle();
 
     if (byEmail) {
-      // Link auth_id via server function (bypasses RLS)
       await supabase.rpc('link_auth_id', {
         p_email: currentUser.email,
         p_auth_id: currentUser.id
@@ -69,7 +67,6 @@ async function loadMember() {
         .maybeSingle();
       currentMember = linked || byEmail;
     } else {
-      // Check if first user ever → auto-admin
       const { count } = await supabase
         .from('team_members')
         .select('*', { count: 'exact', head: true });

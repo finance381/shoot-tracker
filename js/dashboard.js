@@ -24,7 +24,7 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  const pending  = shoots.filter(s => s.status === 'Shot' || s.status === 'Edited');
+  const pending  = shoots.filter(s => s.status === 'Shot' || s.status === 'Editing');
   const posted   = shoots.filter(s => s.status === 'Posted');
   const upcoming = shoots
     .filter(s => s.date >= today && s.status !== 'Posted')
@@ -58,19 +58,19 @@ export async function render() {
 
   el.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="this-week">
         <div class="stat-value">${thisWeek.length}</div>
         <div class="stat-label">This week</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="pending">
         <div class="stat-value">${pending.length}</div>
         <div class="stat-label">Pending edit/review</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="posted">
         <div class="stat-value">${posted.length}</div>
         <div class="stat-label">Posted total</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="all">
         <div class="stat-value">${shoots.length}</div>
         <div class="stat-label">All shoots</div>
       </div>
@@ -91,6 +91,27 @@ export async function render() {
       `).join('')}
   `;
 
+  // Clickable stat cards — navigate to shoots with filters
+  el.querySelectorAll('.stat-clickable').forEach(card => {
+    card.addEventListener('click', () => {
+      const action = card.dataset.action;
+      let filters = {};
+
+      if (action === 'this-week') {
+        filters = { dateFrom: today, dateTo: weekEnd };
+      } else if (action === 'pending') {
+        // Show Shot and Editing — we'll use a custom approach
+        filters = { status: 'Shot' };
+      } else if (action === 'posted') {
+        filters = { status: 'Posted' };
+      }
+      // 'all' = no filters
+
+      window.dispatchEvent(new CustomEvent('navigate-shoots', { detail: filters }));
+    });
+  });
+
+  // Shoot card clicks — fetch fresh data
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async () => {
       const { data: shoot } = await supabase

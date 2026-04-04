@@ -1,9 +1,11 @@
 import { supabase } from './supabase.js';
-import { initAuth, getUser, getMember, login, logout } from './auth.js';
+import { initAuth, getUser, getMember, login, logout, isAdmin } from './auth.js';
 import { render as renderDashboard } from './dashboard.js';
 import { render as renderCalendar } from './calendar.js';
-import { render as renderShoots } from './shoots.js';
+import { render as renderShoots, setFilters, resetFilters } from './shoots.js';
 import { render as renderTeam } from './team.js';
+import { render as renderReports } from './reports.js';
+import { syncShoot } from './sheets-sync.js';
 
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
@@ -12,6 +14,7 @@ const pages = {
   calendar:  renderCalendar,
   shoots:    renderShoots,
   team:      renderTeam,
+  reports:   renderReports,
 };
 let currentPage = 'dashboard';
 let renderGeneration = 0;
@@ -91,10 +94,8 @@ function showAuth() {
         });
         if (signUpErr) throw signUpErr;
 
-        // Login with the new credentials
         await login(phone, pass);
 
-        // Link auth_id via server function (bypasses RLS)
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (authUser) {
           await supabase.rpc('link_auth_id', {
@@ -164,6 +165,12 @@ function showApp() {
   const member = getMember();
   document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
 
+  // Show/hide reports tab based on admin
+  const reportsTab = document.querySelector('[data-page="reports"]');
+  if (reportsTab) {
+    reportsTab.style.display = isAdmin() ? '' : 'none';
+  }
+
   if (!appSetupDone) {
     appSetupDone = true;
     setupNav();
@@ -175,6 +182,7 @@ function showApp() {
     registerSW();
     setupPullToRefresh();
     subscribePush();
+    setupDashboardNav();
   }
 
   navigate('dashboard');
@@ -196,7 +204,20 @@ function navigate(page) {
 
 function setupNav() {
   document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.addEventListener('click', () => navigate(tab.dataset.page));
+    tab.addEventListener('click', () => {
+      if (tab.dataset.page === 'shoots') resetFilters();
+      navigate(tab.dataset.page);
+    });
+  });
+}
+
+// Dashboard card clicks → navigate to shoots with filters
+function setupDashboardNav() {
+  window.addEventListener('navigate-shoots', (e) => {
+    const filters = e.detail || {};
+    resetFilters();
+    setFilters(filters);
+    navigate('shoots');
   });
 }
 
@@ -304,13 +325,11 @@ function setupShootModal() {
     statusGroup.style.display = isEdit ? 'block' : 'none';
     deleteBtn.classList.toggle('hidden', !isEdit);
 
-    // Basic fields
     document.getElementById('s-date').value  = shoot?.date || defaults.date || new Date().toISOString().slice(0, 10);
     document.getElementById('s-time').value  = shoot?.time || '';
     document.getElementById('s-client').value = shoot?.client || '';
     document.getElementById('s-notes').value = shoot?.notes || '';
 
-    // Fetch masters + team in parallel
     const [mastersRes, teamRes] = await Promise.all([
       supabase.from('masters').select('*').order('sort_order'),
       supabase.from('team_members').select('id, name')
@@ -335,7 +354,7 @@ function setupShootModal() {
       extGroup.classList.toggle('hidden', assigneeSel.value !== '__external');
     };
 
-    // Type checkboxes (multi-select)
+    // Type checkboxes
     const shootTypes = masters.filter(m => m.type === 'shoot_type');
     const selectedTypes = (shoot?.type || '').split(',').map(t => t.trim()).filter(Boolean);
     document.getElementById('s-type-checks').innerHTML = shootTypes.map(t => `
@@ -345,7 +364,7 @@ function setupShootModal() {
       </label>
     `).join('');
 
-    // Department checkboxes (multi-select)
+    // Department checkboxes
     const departments = masters.filter(m => m.type === 'department');
     const selectedDepts = shoot?.departments || [];
     document.getElementById('s-dept-checks').innerHTML = departments.map(d => `
@@ -355,7 +374,7 @@ function setupShootModal() {
       </label>
     `).join('');
 
-    // Location dropdown
+    // Location
     const locations = masters.filter(m => m.type === 'location');
     const locationSel = document.getElementById('s-location');
     const currentLoc = shoot?.location || '';
@@ -366,7 +385,6 @@ function setupShootModal() {
       ).join('') +
       `<option value="__outdoor" ${locType === 'outdoor' ? 'selected' : ''}>🌳 Outdoor (other)</option>`;
 
-    // Outdoor venue toggle
     const outdoorGroup = document.getElementById('s-outdoor-group');
     document.getElementById('s-outdoor').value = shoot?.outdoor_venue || '';
     outdoorGroup.classList.toggle('hidden', locType !== 'outdoor');
@@ -383,9 +401,9 @@ function setupShootModal() {
     plannedBtn.onclick = () => { plannedBtn.classList.add('active'); impromptuBtn.classList.remove('active'); };
     impromptuBtn.onclick = () => { impromptuBtn.classList.add('active'); plannedBtn.classList.remove('active'); };
 
-    // Status bar (edit only)
+    // Status bar (edit only) — uses "Editing" instead of "Edited"
     if (isEdit) {
-      const statuses = ['Planned', 'Shot', 'Edited', 'Posted'];
+      const statuses = ['Planned', 'Shot', 'Editing', 'Posted'];
       statusBar.innerHTML = statuses.map(s =>
         `<button data-status="${s}" class="${shoot.status === s ? 'active-' + s : ''}">${s}</button>`
       ).join('');
@@ -397,7 +415,7 @@ function setupShootModal() {
       });
     }
 
-    // Load audit log for edit mode
+    // Audit log
     if (isEdit) {
       const { data: logs } = await supabase
         .from('audit_log')
@@ -441,23 +459,19 @@ function setupShootModal() {
 
     if (!date) return;
 
-    // Multi-select types
     const typeChecks = document.querySelectorAll('#s-type-checks input:checked');
     const type = Array.from(typeChecks).map(c => c.value).join(',');
     if (!type) { alert('Select at least one type'); return; }
 
-    // Multi-select departments
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);
 
-    // Location
     const locationSel = document.getElementById('s-location');
     const locVal = locationSel.value;
     const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
     const location = location_type === 'outdoor' ? '' : locVal;
     const outdoor_venue = location_type === 'outdoor' ? document.getElementById('s-outdoor').value.trim() : '';
 
-    // Impromptu
     const is_impromptu = document.getElementById('s-impromptu').classList.contains('active');
 
     let status = 'Planned';
@@ -466,11 +480,10 @@ function setupShootModal() {
       status = activeStatus?.dataset.status || editingShoot.status;
     }
 
-    // Build type_statuses
+    const STATUS_ORDER = ['Planned', 'Shot', 'Editing', 'Posted'];
     const types = type.split(',').map(t => t.trim()).filter(Boolean);
     let type_statuses = {};
     if (editingShoot && editingShoot.type_statuses) {
-      // Preserve existing type statuses, add new types as current status, remove unchecked
       types.forEach(t => {
         type_statuses[t] = editingShoot.type_statuses[t] || status;
       });
@@ -478,8 +491,6 @@ function setupShootModal() {
       types.forEach(t => { type_statuses[t] = status; });
     }
 
-    // Derive overall status from lowest type status
-    const STATUS_ORDER = ['Planned', 'Shot', 'Edited', 'Posted'];
     const overallStatus = editingShoot
       ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
       : 'Planned';
@@ -487,9 +498,9 @@ function setupShootModal() {
     const row = { date, time, type, client, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
     if (editingShoot) {
-      await supabase.from('shoots').update(row).eq('id', editingShoot.id);
+      const { data: updated } = await supabase.from('shoots').update(row).eq('id', editingShoot.id).select().single();
 
-      // Log any type status changes
+      // Log type status changes
       const oldTS = editingShoot.type_statuses || {};
       const newTS = type_statuses || {};
       const me = getMember();
@@ -506,10 +517,27 @@ function setupShootModal() {
         }
       }
 
+      // Sync to Google Sheets
+      if (updated) {
+        const teamRes = await supabase.from('team_members').select('id, name');
+        const team = teamRes.data || [];
+        updated.assignee_name = team.find(t => t.id === updated.assignee_id)?.name || '';
+        syncShoot(updated, 'upsert');
+      }
+
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot updated' }));
     } else {
       row.created_by = getMember()?.id || null;
-      await supabase.from('shoots').insert(row);
+      const { data: inserted } = await supabase.from('shoots').insert(row).select().single();
+
+      // Sync to Google Sheets
+      if (inserted) {
+        const teamRes = await supabase.from('team_members').select('id, name');
+        const team = teamRes.data || [];
+        inserted.assignee_name = team.find(t => t.id === inserted.assignee_id)?.name || '';
+        syncShoot(inserted, 'upsert');
+      }
+
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot added' }));
     }
 
@@ -521,6 +549,7 @@ function setupShootModal() {
   deleteBtn.addEventListener('click', async () => {
     if (!editingShoot || !confirm('Delete this shoot?')) return;
     await supabase.from('shoots').delete().eq('id', editingShoot.id);
+    syncShoot(editingShoot, 'delete');
     close();
     pages[currentPage]();
     window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot deleted' }));
@@ -541,24 +570,27 @@ function setupToast() {
   });
 }
 
-
 // ===== SERVICE WORKER =====
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
   navigator.serviceWorker.register('./service-worker.js').then(reg => {
-    setInterval(() => reg.update(), 5 * 60000);
+    setInterval(() => reg.update(), 2 * 60000);
 
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
+      if (!newWorker) return;
+
       newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated') {
-          location.reload();
+        if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+          window.dispatchEvent(new CustomEvent('toast', { detail: 'App updated — reloading…' }));
+          setTimeout(() => location.reload(), 800);
         }
       });
     });
   }).catch(console.error);
 }
+
 function setupPullToRefresh() {
   const main = document.getElementById('main-content');
   const indicator = document.getElementById('pull-refresh');

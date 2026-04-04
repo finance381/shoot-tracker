@@ -4,10 +4,8 @@ import { isAdmin } from './auth.js';
 const container = () => document.getElementById('page-team');
 
 let activeMasterTab = 'shoot_type';
-let renderGen = 0;
 
 export async function render() {
-  const myGen = ++renderGen;
   const el = container();
   if (!el) return;
 
@@ -21,7 +19,6 @@ export async function render() {
       .select('*')
       .order('created_at');
 
-    if (myGen !== renderGen) return;
     if (error) { el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>${error.message}</div>`; return; }
 
     const team = members || [];
