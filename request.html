@@ -105,10 +105,6 @@
         <label>Your Name *</label>
         <input type="text" id="r-name" placeholder="e.g. Sahaj, Krati">
       </div>
-      <div class="form-group">
-        <label>Your Phone</label>
-        <input type="tel" id="r-phone" placeholder="e.g. 9876543210">
-      </div>
       <div class="form-row-2">
         <div class="form-group">
           <label>Preferred Date *</label>
@@ -120,30 +116,8 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Type of Shoot *</label>
-        <div id="r-type-checks" class="checkbox-group">
-          ${shootTypes.map(t => `
-            <label class="check-label">
-              <input type="checkbox" value="${t.label}">
-              <span>${t.label}</span>
-            </label>
-          `).join('')}
-        </div>
-      </div>
-      <div class="form-group">
         <label>Function / Purpose *</label>
         <input type="text" id="r-function" placeholder="e.g. Product launch, Wedding, Event">
-      </div>
-      <div class="form-group">
-        <label>Department</label>
-        <div id="r-dept-checks" class="checkbox-group">
-          ${departments.map(d => `
-            <label class="check-label">
-              <input type="checkbox" value="${d.label}">
-              <span>${d.label}</span>
-            </label>
-          `).join('')}
-        </div>
       </div>
       <div class="form-group">
         <label>Location</label>
@@ -170,24 +144,16 @@
 
   async function handleSubmit() {
     const name = document.getElementById('r-name').value.trim();
-    const phone = document.getElementById('r-phone').value.trim();
     const date = document.getElementById('r-date').value;
     const time = document.getElementById('r-time').value || null;
     const func = document.getElementById('r-function').value.trim();
     const location = document.getElementById('r-location').value;
     const notes = document.getElementById('r-notes').value.trim();
 
-    const typeChecks = document.querySelectorAll('#r-type-checks input:checked');
-    const shootType = Array.from(typeChecks).map(c => c.value).join(',');
-
-    const deptChecks = document.querySelectorAll('#r-dept-checks input:checked');
-    const department = Array.from(deptChecks).map(c => c.value).join(',');
-
     // Validation
     errorEl.style.display = 'none';
     if (!name) { showError('Please enter your name'); return; }
     if (!date) { showError('Please select a date'); return; }
-    if (!shootType) { showError('Please select at least one shoot type'); return; }
     if (!func) { showError('Please describe the function / purpose'); return; }
 
     const btn = document.getElementById('r-submit');
@@ -197,12 +163,9 @@
     try {
       const { error } = await supabase.from('shoot_requests').insert({
         requested_by: name,
-        phone,
         date,
         time,
-        shoot_type: shootType,
         function: func,
-        department,
         location,
         notes
       });

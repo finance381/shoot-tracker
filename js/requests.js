@@ -123,9 +123,18 @@ function renderRequestCard(r, team) {
   `;
 }
 
-function openAcceptModal(req, team) {
+async function openAcceptModal(req, team) {
   if (!req) return;
   document.getElementById('accept-modal')?.remove();
+
+  // Fetch masters for dropdowns
+  const { data: masters } = await supabase.from('masters').select('*').order('sort_order');
+  const items = masters || [];
+  const shootTypes = items.filter(m => m.type === 'shoot_type');
+  const departments = items.filter(m => m.type === 'department');
+  const locations = items.filter(m => m.type === 'location');
+
+  const dateStr = new Date(req.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
   const overlay = document.createElement('div');
   overlay.id = 'accept-modal';
@@ -133,32 +142,94 @@ function openAcceptModal(req, team) {
   overlay.innerHTML = `
     <div class="modal" style="border-radius:20px 20px 0 0;">
       <div class="modal-header">
-        <h2>Accept Request</h2>
+        <h2>Accept & Create Shoot</h2>
         <button class="btn-icon" id="acc-close">✕</button>
       </div>
       <div class="modal-body">
         <div class="req-summary">
-          <strong>${req.requested_by}</strong> requested a <strong>${req.shoot_type}</strong> shoot
-          on <strong>${new Date(req.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</strong>
+          <strong>${req.requested_by}</strong> requested a shoot
+          on <strong>${dateStr}</strong>
           ${req.time ? ' at <strong>' + fmtTime(req.time) + '</strong>' : ''}
-          ${req.function ? ' for <strong>' + req.function + '</strong>' : ''}
+          ${req.function ? ' — <strong>' + req.function + '</strong>' : ''}
+          ${req.location ? ' · 📍 ' + req.location : ''}
+          ${req.notes ? '<br><span style="font-size:12px;color:var(--stone)">' + req.notes + '</span>' : ''}
         </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="acc-date" value="${req.date}">
+          </div>
+          <div class="form-group">
+            <label>Time</label>
+            <input type="time" id="acc-time" value="${req.time || ''}">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Type of Shoot *</label>
+          <div id="acc-type-checks" class="checkbox-group">
+            ${shootTypes.map(t => `
+              <label class="check-label">
+                <input type="checkbox" value="${t.label}">
+                <span>${t.label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Assign Photographer *</label>
           <select id="acc-assignee">
             ${team.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label>Adjust Time (optional)</label>
-          <input type="time" id="acc-time" value="${req.time || ''}">
+          <label>Function</label>
+          <input type="text" id="acc-function" value="${req.function || ''}">
         </div>
+
+        <div class="form-group">
+          <label>Requested By</label>
+          <input type="text" id="acc-requested-by" value="${req.requested_by || ''}">
+        </div>
+
+        <div class="form-group">
+          <label>For Department</label>
+          <div id="acc-dept-checks" class="checkbox-group">
+            ${departments.map(d => `
+              <label class="check-label">
+                <input type="checkbox" value="${d.label}">
+                <span>${d.label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Location</label>
+          <select id="acc-location">
+            ${locations.map(l => `<option value="${l.label}" ${req.location === l.label ? 'selected' : ''}>${l.label}</option>`).join('')}
+            <option value="__outdoor">🌳 Outdoor (other)</option>
+          </select>
+        </div>
+        <div class="form-group hidden" id="acc-outdoor-group">
+          <label>Outdoor Venue</label>
+          <input type="text" id="acc-outdoor" placeholder="e.g. Central Park, Mall Road">
+        </div>
+
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="acc-notes" rows="2">${req.notes || ''}</textarea>
+        </div>
+
         <div id="acc-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
         <span class="spacer"></span>
         <button class="btn-secondary" id="acc-cancel">Cancel</button>
-        <button class="btn-primary" id="acc-confirm">Accept & Create Shoot</button>
+        <button class="btn-primary" id="acc-confirm">Create Shoot</button>
       </div>
     </div>
   `;
@@ -169,47 +240,61 @@ function openAcceptModal(req, team) {
   overlay.querySelector('#acc-cancel').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
+  // Outdoor toggle
+  const locSel = overlay.querySelector('#acc-location');
+  const outdoorGrp = overlay.querySelector('#acc-outdoor-group');
+  locSel.addEventListener('change', () => {
+    outdoorGrp.classList.toggle('hidden', locSel.value !== '__outdoor');
+  });
+
   overlay.querySelector('#acc-confirm').addEventListener('click', async () => {
-    const assigneeId = overlay.querySelector('#acc-assignee').value;
+    const date = overlay.querySelector('#acc-date').value;
     const time = overlay.querySelector('#acc-time').value || null;
+    const assigneeId = overlay.querySelector('#acc-assignee').value;
+    const client = overlay.querySelector('#acc-function').value.trim();
+    const requested_by = overlay.querySelector('#acc-requested-by').value.trim();
+    const notes = overlay.querySelector('#acc-notes').value.trim();
     const errEl = overlay.querySelector('#acc-error');
+
+    const typeChecks = overlay.querySelectorAll('#acc-type-checks input:checked');
+    const typeStr = Array.from(typeChecks).map(c => c.value).join(',');
+    if (!typeStr) { errEl.textContent = 'Select at least one shoot type'; errEl.classList.remove('hidden'); return; }
+
+    const deptChecks = overlay.querySelectorAll('#acc-dept-checks input:checked');
+    const depts = Array.from(deptChecks).map(c => c.value);
+
+    const locVal = locSel.value;
+    const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
+    const location = location_type === 'outdoor' ? '' : locVal;
+    const outdoor_venue = location_type === 'outdoor' ? overlay.querySelector('#acc-outdoor').value.trim() : '';
+
     const btn = overlay.querySelector('#acc-confirm');
     btn.disabled = true;
     btn.textContent = 'Creating…';
 
     try {
       const me = getMember();
-      const types = (req.shoot_type || '').split(',').map(t => t.trim()).filter(Boolean);
+      const types = typeStr.split(',').map(t => t.trim()).filter(Boolean);
       const type_statuses = {};
       types.forEach(t => { type_statuses[t] = 'Planned'; });
-      const departments = (req.department || '').split(',').map(d => d.trim()).filter(Boolean);
 
-      const locType = req.location === 'outdoor' ? 'outdoor' : 'indoor';
-      const location = locType === 'outdoor' ? '' : req.location;
-      const outdoor_venue = locType === 'outdoor' ? (req.notes || '') : '';
-
-      // Create the shoot
       const { data: shoot, error: shootErr } = await supabase.from('shoots').insert({
-        date: req.date,
-        time: time,
-        type: req.shoot_type,
-        client: req.function,
-        requested_by: req.requested_by,
-        location: location,
-        location_type: locType,
-        outdoor_venue: outdoor_venue,
+        date, time,
+        type: typeStr,
+        client,
+        requested_by,
+        location, location_type, outdoor_venue,
         assignee_id: assigneeId,
         status: 'Planned',
-        type_statuses: type_statuses,
-        departments: departments,
-        notes: req.notes || '',
+        type_statuses,
+        departments: depts,
+        notes,
         is_impromptu: false,
         created_by: me?.id
       }).select().single();
 
       if (shootErr) throw shootErr;
 
-      // Mark request as accepted
       await supabase.from('shoot_requests').update({
         status: 'accepted',
         reviewed_by: me?.id,
@@ -217,7 +302,6 @@ function openAcceptModal(req, team) {
         shoot_id: shoot?.id
       }).eq('id', req.id);
 
-      // Sync to sheet
       if (shoot) {
         const teamMember = team.find(t => t.id === shoot.assignee_id);
         shoot.assignee_name = teamMember?.name || '';
@@ -231,7 +315,7 @@ function openAcceptModal(req, team) {
       errEl.textContent = err.message || 'Failed to create shoot';
       errEl.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = 'Accept & Create Shoot';
+      btn.textContent = 'Create Shoot';
     }
   });
 }
