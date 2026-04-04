@@ -1081,6 +1081,47 @@ body { background: var(--cream); }
   justify-content: center;
   flex-shrink: 0;
 }
+/* ========== CALENDAR DAY SHEET ========== */
+.day-shoot-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+  box-shadow: var(--shadow);
+  transition: transform .1s;
+}
+.day-shoot-card:active { transform: scale(.98); }
+.day-shoot-card.border-Planned { border-left-color: var(--blue); }
+.day-shoot-card.border-Shot    { border-left-color: var(--amber); }
+.day-shoot-card.border-Edited  { border-left-color: var(--plum); }
+.day-shoot-card.border-Posted  { border-left-color: var(--sage); }
+.day-shoot-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.day-add-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 2px dashed var(--border);
+  background: transparent;
+  color: var(--terracotta);
+  font-weight: 700;
+  font-size: 14px;
+  font-family: var(--font);
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background .15s;
+}
+.day-add-btn:active {
+  background: var(--terracotta-light);
+}
+
+
 /* ========== AUDIT LOG ========== */
 .audit-log-list {
   max-height: 200px;
