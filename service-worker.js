@@ -1,5 +1,5 @@
 // BUMP THIS on every deploy so the browser detects a SW change
-const APP_VERSION = '2026-04-04a';
+const APP_VERSION = '2026-04-04b';
 const CACHE_NAME = 'shoot-tracker-' + APP_VERSION;
 const SHELL_FILES = [
   './',
@@ -13,6 +13,7 @@ const SHELL_FILES = [
   './js/shoots.js',
   './js/team.js',
   './js/reports.js',
+  './js/requests.js',
   './js/sheets-sync.js',
   './manifest.json'
 ];

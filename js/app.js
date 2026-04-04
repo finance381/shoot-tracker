@@ -5,6 +5,7 @@ import { render as renderCalendar } from './calendar.js';
 import { render as renderShoots, setFilters, resetFilters } from './shoots.js';
 import { render as renderTeam } from './team.js';
 import { render as renderReports } from './reports.js';
+import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
 
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
@@ -15,6 +16,7 @@ const pages = {
   shoots:    renderShoots,
   team:      renderTeam,
   reports:   renderReports,
+  requests:  renderRequests,
 };
 let currentPage = 'dashboard';
 let renderGeneration = 0;
