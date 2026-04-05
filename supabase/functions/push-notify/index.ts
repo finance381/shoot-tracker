@@ -82,15 +82,21 @@ Deno.serve(async (req) => {
         const diffMin = (shootTime.getTime() - now.getTime()) / 60000;
 
         // Window: 45–75 min from now (handles 15-min cron interval)
-        if (diffMin > 45 && diffMin <= 75) {
+        if (diffMin > 15 && diffMin <= 45) {
           let subs;
           if (shoot.assignee_id) {
-            // Notify the assigned person
+            // Try to notify the assigned person
             const { data } = await supabase
               .from("push_subscriptions")
               .select("*")
               .eq("member_id", shoot.assignee_id);
             subs = data;
+
+            // Fallback: if assignee has no subscription, notify everyone
+            if (!subs || subs.length === 0) {
+              const { data: allSubs } = await supabase.from("push_subscriptions").select("*");
+              subs = allSubs;
+            }
           } else {
             // No assignee — notify everyone
             const { data } = await supabase.from("push_subscriptions").select("*");
@@ -103,7 +109,7 @@ Deno.serve(async (req) => {
 
           for (const sub of subs || []) {
             const r = await sendToSub(sub, {
-              title: "📸 Shoot in 1 hour",
+              title: "📸 Shoot in 30 minutes",
               body: `${shoot.type}${shoot.client ? " — " + shoot.client : ""}${shoot.time ? " at " + shoot.time : ""}${loc ? " · " + loc : ""}`,
               tag: "hour-" + shoot.id,
             });

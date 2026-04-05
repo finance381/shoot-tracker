@@ -114,12 +114,22 @@ export async function render() {
   // Shoot card clicks — fetch fresh data
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async () => {
-      const { data: shoot } = await supabase
-        .from('shoots')
-        .select('*')
-        .eq('id', card.dataset.id)
-        .maybeSingle();
-      if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
+      if (card.dataset.loading) return;
+      card.dataset.loading = 'true';
+      card.style.opacity = '0.6';
+      try {
+        const { data: shoot } = await supabase
+          .from('shoots')
+          .select('*')
+          .eq('id', card.dataset.id)
+          .maybeSingle();
+        if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
+      } catch (err) {
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Could not load shoot' }));
+      } finally {
+        card.dataset.loading = '';
+        card.style.opacity = '';
+      }
     });
   });
 }

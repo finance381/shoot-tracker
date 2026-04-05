@@ -39,7 +39,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 input, select, textarea, button { font-family: var(--font); font-size: 15px; }
-.hidden { display: none !important; }
+.hidden { display: none !important; pointer-events: none !important; }
 
 /* ========== AUTH SCREEN ========== */
 #auth-screen {

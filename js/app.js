@@ -319,10 +319,15 @@ function setupShootModal() {
   document.getElementById('modal-cancel').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
+  let isOpening = false;
+
   async function open(shoot = null, defaults = {}) {
+    if (isOpening) return;
+    isOpening = true;
     editingShoot = shoot;
     const isEdit = !!shoot;
 
+    try {
     titleEl.textContent = isEdit ? 'Edit Shoot' : 'New Shoot';
     statusGroup.style.display = isEdit ? 'block' : 'none';
     deleteBtn.classList.toggle('hidden', !isEdit);
@@ -448,10 +453,22 @@ function setupShootModal() {
     }
 
     overlay.classList.remove('hidden');
+    } catch (err) {
+      console.error('Modal open error:', err);
+      overlay.classList.add('hidden');
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Error loading shoot details' }));
+    } finally {
+      isOpening = false;
+    }
   }
 
   // Save
   document.getElementById('modal-save').addEventListener('click', async () => {
+    const saveBtn = document.getElementById('modal-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
+    try {
     const date     = document.getElementById('s-date').value;
     const time     = document.getElementById('s-time').value || null;
     const client   = document.getElementById('s-client').value.trim();
@@ -547,16 +564,27 @@ function setupShootModal() {
 
     close();
     pages[currentPage]();
+    } catch (err) {
+      console.error('Save error:', err);
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Error saving: ' + (err.message || 'unknown') }));
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
   });
 
   // Delete
   deleteBtn.addEventListener('click', async () => {
     if (!editingShoot || !confirm('Delete this shoot?')) return;
-    await supabase.from('shoots').delete().eq('id', editingShoot.id);
-    syncShoot(editingShoot, 'delete');
-    close();
-    pages[currentPage]();
-    window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot deleted' }));
+    try {
+      await supabase.from('shoots').delete().eq('id', editingShoot.id);
+      syncShoot(editingShoot, 'delete');
+      close();
+      pages[currentPage]();
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot deleted' }));
+    } catch (err) {
+      console.error('Delete error:', err);
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Error deleting: ' + (err.message || 'unknown') }));
+    }
   });
 
   // Custom events

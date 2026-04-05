@@ -209,12 +209,23 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async (e) => {
       if (e.target.closest('.type-advance-btn') || e.target.closest('.type-revert-btn')) return;
-      const { data: shoot } = await supabase
-        .from('shoots')
-        .select('*')
-        .eq('id', card.dataset.id)
-        .maybeSingle();
-      if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
+      if (card.dataset.loading) return;
+      card.dataset.loading = 'true';
+      card.style.opacity = '0.6';
+      try {
+        const { data: shoot } = await supabase
+          .from('shoots')
+          .select('*')
+          .eq('id', card.dataset.id)
+          .maybeSingle();
+        if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
+      } catch (err) {
+        console.error('Failed to load shoot:', err);
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Could not load shoot' }));
+      } finally {
+        card.dataset.loading = '';
+        card.style.opacity = '';
+      }
     });
   });
 
