@@ -606,7 +606,7 @@ function setupToast() {
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
-  navigator.serviceWorker.register('./service-worker.js?v=' + Date.now()).then(reg => {
+  navigator.serviceWorker.register('./service-worker.js').then(reg => {
     setInterval(() => reg.update(), 2 * 60000);
 
     reg.addEventListener('updatefound', () => {
