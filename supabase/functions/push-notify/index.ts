@@ -120,6 +120,38 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ results }));
     }
+    if (type === "new_request") {
+      const { request: req } = await req.json().catch(() => ({}));
+      const reqData = req || (await supabase.from("shoot_requests").select("*").order("created_at", { ascending: false }).limit(1).single()).data;
+
+      if (!reqData) return new Response(JSON.stringify({ msg: "No request found" }));
+
+      const dateStr = reqData.date || "TBD";
+      const body = `${reqData.requested_by || "Someone"} requested a shoot on ${dateStr}${reqData.function_name ? " — " + reqData.function_name : ""}${reqData.location ? " · " + reqData.location : ""}`;
+
+      // Send to Shivika + Pratik only
+      const notifyMembers = [
+        "cc8fa698-8cb1-4994-b742-74df10a01ba7",
+        "e1ef0fca-930c-43f2-89d7-b817fd9fc79e"
+      ];
+
+      const { data: subs } = await supabase
+        .from("push_subscriptions")
+        .select("*")
+        .in("member_id", notifyMembers);
+
+      const results = await Promise.allSettled(
+        (subs || []).map((sub: any) =>
+          sendToSub(sub, {
+            title: "📋 New Shoot Request",
+            body,
+            tag: "request-" + (reqData.id || Date.now()),
+          })
+        )
+      );
+
+      return new Response(JSON.stringify({ sent: results.length }));
+    }
 
     return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400 });
   } catch (err: any) {
