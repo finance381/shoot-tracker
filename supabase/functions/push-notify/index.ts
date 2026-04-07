@@ -121,13 +121,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ results }));
     }
     if (type === "new_request") {
-      const { request: req } = await req.json().catch(() => ({}));
-      const reqData = req || (await supabase.from("shoot_requests").select("*").order("created_at", { ascending: false }).limit(1).single()).data;
+      // Fetch the latest request
+      const { data: reqData } = await supabase
+        .from("shoot_requests")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
       if (!reqData) return new Response(JSON.stringify({ msg: "No request found" }));
 
-      const dateStr = reqData.date || "TBD";
-      const body = `${reqData.requested_by || "Someone"} requested a shoot on ${dateStr}${reqData.function_name ? " — " + reqData.function_name : ""}${reqData.location ? " · " + reqData.location : ""}`;
+      const body = `${reqData.requested_by || "Someone"} requested a shoot on ${reqData.date || "TBD"}${reqData.function_name ? " — " + reqData.function_name : ""}${reqData.location ? " · " + reqData.location : ""}`;
 
       // Send to Shivika + Pratik only
       const notifyMembers = [
@@ -145,7 +149,7 @@ Deno.serve(async (req) => {
           sendToSub(sub, {
             title: "📋 New Shoot Request",
             body,
-            tag: "request-" + (reqData.id || Date.now()),
+            tag: "request-" + reqData.id,
           })
         )
       );

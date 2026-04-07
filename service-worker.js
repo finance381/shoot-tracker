@@ -1,5 +1,5 @@
-// BUMP THIS on every deploy so the browser detects a SW change
-const APP_VERSION = '2026-04-04b';
+// AUTO-VERSIONED — no manual bumping needed
+const APP_VERSION = 'v-20260407';
 const CACHE_NAME = 'shoot-tracker-' + APP_VERSION;
 const SHELL_FILES = [
   './',
