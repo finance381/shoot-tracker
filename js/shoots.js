@@ -22,6 +22,7 @@ let filterVenue = 'All';
 let filterDateFrom = '';
 let filterDateTo = '';
 let filterSearch = '';
+let filterDateDir = 'all';
 let teamCache = [];
 let venueCache = [];
 let renderGen = 0;
@@ -45,6 +46,7 @@ export function resetFilters() {
   filterDateFrom = '';
   filterDateTo = '';
   filterSearch = '';
+  filterDateDir = 'all';
 }
 
 export async function render() {
@@ -69,7 +71,9 @@ export async function render() {
 
   const filtered = shoots.filter(s => {
     if (filterMember !== 'All' && s.assignee_id !== filterMember) return false;
-    if (filterStatus !== 'All') {
+    if (filterStatus === '__not_posted') {
+      if (s.status === 'Posted') return false;
+    } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
       const statuses = Object.keys(ts).length > 0 ? Object.values(ts) : [s.status];
       if (!statuses.includes(filterStatus)) return false;
@@ -131,6 +135,11 @@ export async function render() {
         <input type="date" id="filter-date-to" class="filter-date" value="${filterDateTo}">
       </div>
     </div>
+    <div class="time-toggle">
+      <button class="time-toggle-btn ${!filterDateDir || filterDateDir === 'all' ? 'active' : ''}" data-dir="all">All</button>
+      <button class="time-toggle-btn ${filterDateDir === 'upcoming' ? 'active' : ''}" data-dir="upcoming">Upcoming</button>
+      <button class="time-toggle-btn ${filterDateDir === 'past' ? 'active' : ''}" data-dir="past">Past</button>
+    </div>
     <div id="shoots-content"></div>
   `;
 
@@ -145,6 +154,9 @@ export async function render() {
   el.querySelector('#filter-date-from').addEventListener('change', (e) => { filterDateFrom = e.target.value; render(); });
   el.querySelector('#filter-date-to').addEventListener('change', (e) => { filterDateTo = e.target.value; render(); });
   el.querySelector('#clear-filters')?.addEventListener('click', () => { resetFilters(); render(); });
+  el.querySelectorAll('.time-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => { filterDateDir = btn.dataset.dir; render(); });
+  });
 
   renderDateGrouped(el.querySelector('#shoots-content'), filtered, shoots, me);
 }
@@ -196,13 +208,28 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   }
 
   let html = '';
-  if (upcomingDates.length > 0) {
-    html += '<p class="section-title">Upcoming</p>';
-    html += renderDateGroups(upcomingDates, grouped, me);
-  }
-  if (pastDates.length > 0) {
-    html += '<p class="section-title" style="margin-top:24px">Past</p>';
-    html += renderDateGroups(pastDates, grouped, me);
+  const showUpcoming = filterDateDir === 'all' || filterDateDir === 'upcoming';
+  const showPast = filterDateDir === 'all' || filterDateDir === 'past';
+
+  if (filterDateDir === 'past') {
+    // Show past first when Past is selected
+    if (pastDates.length > 0 && showPast) {
+      html += '<p class="section-title">Past</p>';
+      html += renderDateGroups(pastDates, grouped, me);
+    }
+    if (upcomingDates.length > 0 && showUpcoming) {
+      html += '<p class="section-title" style="margin-top:24px">Upcoming</p>';
+      html += renderDateGroups(upcomingDates, grouped, me);
+    }
+  } else {
+    if (upcomingDates.length > 0 && showUpcoming) {
+      html += '<p class="section-title">Upcoming</p>';
+      html += renderDateGroups(upcomingDates, grouped, me);
+    }
+    if (pastDates.length > 0 && showPast) {
+      html += '<p class="section-title" style="margin-top:24px">Past</p>';
+      html += renderDateGroups(pastDates, grouped, me);
+    }
   }
   el.innerHTML = html;
 

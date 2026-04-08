@@ -24,7 +24,7 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  const pending  = shoots.filter(s => s.status === 'Shot' || s.status === 'Editing');
+  const pending  = shoots.filter(s => s.status !== 'Posted');
   const posted   = shoots.filter(s => s.status === 'Posted');
   const upcoming = shoots
     .filter(s => s.date >= today && s.status !== 'Posted')
@@ -64,7 +64,7 @@ export async function render() {
       </div>
       <div class="stat-card stat-clickable" data-action="pending">
         <div class="stat-value">${pending.length}</div>
-        <div class="stat-label">Pending edit/review</div>
+        <div class="stat-label">Pending post</div>
       </div>
       <div class="stat-card stat-clickable" data-action="posted">
         <div class="stat-value">${posted.length}</div>
@@ -100,8 +100,7 @@ export async function render() {
       if (action === 'this-week') {
         filters = { dateFrom: today, dateTo: weekEnd };
       } else if (action === 'pending') {
-        // Show Shot and Editing — we'll use a custom approach
-        filters = { status: 'Shot' };
+        filters = { status: '__not_posted' };
       } else if (action === 'posted') {
         filters = { status: 'Posted' };
       }

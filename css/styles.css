@@ -1558,3 +1558,29 @@ body { background: var(--cream); }
   background: var(--terracotta);
   color: #fff;
 }
+/* ========== TIME TOGGLE ========== */
+.time-toggle {
+  display: flex;
+  background: var(--sand);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+  margin-bottom: 14px;
+}
+.time-toggle-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stone);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.time-toggle-btn.active {
+  background: var(--white);
+  color: var(--espresso);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
