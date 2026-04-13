@@ -313,11 +313,14 @@ function setupShootModal() {
   const deleteBtn = document.getElementById('modal-delete');
   let editingShoot = null;
 
+  let openedAt = 0;
   const close = () => { overlay.classList.add('hidden'); editingShoot = null; isOpening = false; };
 
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay && Date.now() - openedAt > 300) close();
+  });
 
   let isOpening = false;
 
@@ -453,6 +456,7 @@ function setupShootModal() {
     }
 
     overlay.classList.remove('hidden');
+    openedAt = Date.now();
     } catch (err) {
       console.error('Modal open error:', err);
       overlay.classList.add('hidden');
