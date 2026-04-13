@@ -562,6 +562,8 @@ function setupShootModal() {
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot added' }));
     }
 
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
     close();
     pages[currentPage]();
     } catch (err) {
