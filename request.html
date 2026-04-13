@@ -66,6 +66,18 @@
       font-family: var(--font);
     }
     .loading { text-align: center; padding: 20px; color: var(--stone); font-size: 14px; }
+    .check-status-link {
+      display: block;
+      text-align: center;
+      padding: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--terracotta);
+      text-decoration: none;
+      background: var(--terracotta-light);
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
@@ -74,6 +86,7 @@
   <div class="form-logo">📸</div>
   <h1 class="form-title">Request a Shoot</h1>
   <p class="form-sub">Fill in the details and our team will review your request</p>
+  <a href="request-status.html" class="check-status-link">📋 Check Request Status</a>
 
   <div id="form-error" class="form-error"></div>
 
