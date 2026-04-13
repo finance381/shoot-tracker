@@ -313,7 +313,7 @@ function setupShootModal() {
   const deleteBtn = document.getElementById('modal-delete');
   let editingShoot = null;
 
-  const close = () => { overlay.classList.add('hidden'); editingShoot = null; };
+  const close = () => { overlay.classList.add('hidden'); editingShoot = null; isOpening = false; };
 
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);

@@ -40,12 +40,13 @@ export async function render() {
     const dayS = all.filter(s => s.date === dateStr);
     const isToday = dateStr === today ? ' today' : '';
     const count = dayS.length;
-    const dots = dayS.slice(0, 4).map(s => `<div class="cal-dot dot-${s.status}"></div>`).join('');
+    const dots = dayS.slice(0, 3).map(s => `<div class="cal-dot dot-${s.status}"></div>`).join('');
+    const overflow = count > 3 ? `<span class="cal-overflow">+${count - 3}</span>` : '';
 
     cells += `
       <div class="cal-cell${isToday}${count > 0 ? ' has-shoots' : ''}" data-date="${dateStr}">
         <span class="cal-date">${d}</span>
-        <div class="cal-dots">${dots}</div>
+        <div class="cal-dots">${dots}${overflow}</div>
       </div>`;
   }
 
