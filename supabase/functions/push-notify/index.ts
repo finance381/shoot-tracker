@@ -28,7 +28,8 @@ async function sendToSub(sub: any, payload: any) {
 
 Deno.serve(async (req) => {
   try {
-    const { type } = await req.json();
+    const body = await req.json();
+    const { type } = body;
 
     if (type === "daily_summary") {
       const tomorrow = new Date();
@@ -150,6 +151,43 @@ Deno.serve(async (req) => {
             title: "📋 New Shoot Request",
             body,
             tag: "request-" + reqData.id,
+          })
+        )
+      );
+
+      return new Response(JSON.stringify({ sent: results.length }));
+    }
+    if (type === "request_status_changed") {
+      const name = body.requester_name || "Someone";
+      const status = body.new_status || "updated";
+      const func = body.function_name || "";
+      const dateStr = body.date || "";
+      const reason = body.reject_reason || "";
+
+      let title, notifBody;
+      if (status === "accepted") {
+        title = "✅ Request Approved!";
+        notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} has been approved and scheduled.`;
+      } else {
+        title = "❌ Request Declined";
+        notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} was declined.${reason ? " Reason: " + reason : ""}`;
+      }
+
+      const { data: subs } = await supabase
+        .from("requester_push_subs")
+        .select("*")
+        .ilike("requester_name", `%${name}%`);
+
+      if (!subs?.length) {
+        return new Response(JSON.stringify({ msg: "No requester subscriptions found" }));
+      }
+
+      const results = await Promise.allSettled(
+        subs.map((sub: any) =>
+          sendToSub(sub, {
+            title,
+            body: notifBody,
+            tag: "req-status-" + (body.request_id || Date.now()),
           })
         )
       );

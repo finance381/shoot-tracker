@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#C17837">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Request Status</title>
+  <link rel="manifest" href="status-manifest.json">
+  <link rel="icon" href="icons/pwa-192.png">
+  <link rel="apple-touch-icon" href="icons/pwa-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F2EA; --white: #FFFFFF; --sand: #EDE6D9; --sand-dark: #DDD4C5;
+      --terracotta: #C17837; --terracotta-dark: #A8622B; --terracotta-light: #F2E0CD;
+      --espresso: #2D2418; --bark: #6B5B4D; --stone: #9C8E80; --border: #E4DCD0;
+      --blue: #5B8DBF; --blue-bg: #EBF2F8; --amber: #D4943A; --amber-bg: #FDF3E4;
+      --sage: #6B9B5E; --sage-bg: #EDF5EB;
+      --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: var(--font); background: var(--cream); color: var(--espresso);
+      min-height: 100dvh; padding: 0; -webkit-font-smoothing: antialiased;
+    }
+    .top-bar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .top-bar h1 { font-size: 18px; font-weight: 800; }
+    .top-bar-sub { font-size: 12px; color: var(--stone); }
+    .content { padding: 20px 16px 80px; max-width: 520px; margin: 0 auto; }
+
+    .lookup-card {
+      background: var(--white); border-radius: 14px; padding: 24px 20px;
+      box-shadow: 0 2px 12px rgba(45,36,24,.06); margin-bottom: 20px;
+    }
+    .lookup-card label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--bark); display: block; margin-bottom: 6px;
+    }
+    .lookup-row { display: flex; gap: 8px; }
+    .lookup-row input {
+      flex: 1; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--cream); color: var(--espresso); font-size: 15px;
+      font-family: var(--font); outline: none;
+    }
+    .lookup-row input:focus { border-color: var(--terracotta); }
+    .lookup-row button {
+      padding: 12px 20px; border-radius: 10px; background: var(--terracotta);
+      color: #fff; border: none; font-weight: 700; font-size: 14px; cursor: pointer;
+      font-family: var(--font); flex-shrink: 0;
+    }
+
+    .req-card {
+      background: var(--white); border-radius: 14px; padding: 16px;
+      box-shadow: 0 2px 12px rgba(45,36,24,.06); margin-bottom: 10px;
+      border-left: 4px solid var(--amber);
+    }
+    .req-card.status-accepted { border-left-color: var(--sage); }
+    .req-card.status-rejected { border-left-color: #C0392B; }
+    .req-card.status-pending { border-left-color: var(--amber); }
+    .req-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+    .req-card-func { font-size: 15px; font-weight: 700; }
+    .req-card-date { font-size: 13px; color: var(--stone); margin-top: 2px; }
+    .req-card-loc { font-size: 12px; color: var(--stone); margin-top: 4px; }
+    .req-card-notes { font-size: 12px; color: var(--stone); margin-top: 4px; font-style: italic; }
+    .req-card-reject { font-size: 12px; color: #C0392B; margin-top: 6px; font-weight: 600; }
+
+    .status-badge {
+      font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 12px;
+      text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0;
+    }
+    .badge-pending { background: var(--amber-bg); color: var(--amber); }
+    .badge-accepted { background: var(--sage-bg); color: var(--sage); }
+    .badge-rejected { background: #FFF0F0; color: #C0392B; }
+
+    .empty { text-align: center; padding: 40px 20px; color: var(--stone); font-size: 14px; }
+    .empty .emoji { font-size: 36px; margin-bottom: 8px; }
+
+    .new-req-btn {
+      display: block; width: 100%; padding: 14px; border-radius: 10px;
+      background: var(--terracotta-light); color: var(--terracotta-dark);
+      border: none; font-weight: 700; font-size: 14px; cursor: pointer;
+      font-family: var(--font); text-align: center; margin-top: 16px;
+      text-decoration: none;
+    }
+
+    .saved-name { font-size: 13px; color: var(--stone); margin-bottom: 12px; }
+    .saved-name button {
+      background: none; border: none; color: var(--terracotta); font-weight: 700;
+      font-size: 13px; cursor: pointer; font-family: var(--font); padding: 0; margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>📸 Request Status</h1>
+    <div class="top-bar-sub">Track your shoot requests</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="lookup-card" id="lookup-section">
+    <label>Enter your name to see requests</label>
+    <div class="lookup-row">
+      <input type="text" id="name-input" placeholder="e.g. Sahaj, Krati">
+      <button id="lookup-btn">Search</button>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const SUPABASE_URL = 'https://qzttaeeywdepjytyagro.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6dHRhZWV5d2RlcGp5dHlhZ3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxOTE2ODMsImV4cCI6MjA5MDc2NzY4M30.aijbdeeB6SfY9cExnd6MBVUH0Y_v4_70HUagMfTYEEY';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const nameInput = document.getElementById('name-input');
+  const lookupBtn = document.getElementById('lookup-btn');
+  const resultsEl = document.getElementById('results');
+  const lookupSection = document.getElementById('lookup-section');
+
+  // Remember last searched name
+  const savedName = localStorage.getItem('req_name');
+  if (savedName) {
+    nameInput.value = savedName;
+    search(savedName);
+  }
+
+  lookupBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    localStorage.setItem('req_name', name);
+    search(name);
+  });
+
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') lookupBtn.click();
+  });
+
+  async function search(name) {
+    resultsEl.innerHTML = '<div class="empty">Loading…</div>';
+
+    const { data: requests, error } = await supabase
+      .from('shoot_requests')
+      .select('*')
+      .ilike('requested_by', `%${name}%`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      resultsEl.innerHTML = `<div class="empty"><div class="emoji">⚠️</div>${error.message}</div>`;
+      return;
+    }
+
+    if (!requests || requests.length === 0) {
+      resultsEl.innerHTML = `
+        <div class="empty">
+          <div class="emoji">📭</div>
+          No requests found for "${name}"
+        </div>
+        <a href="request.html" class="new-req-btn">+ Submit a New Request</a>
+      `;
+      return;
+    }
+
+    resultsEl.innerHTML = `
+      <div class="saved-name">
+        Showing requests for <strong>${name}</strong>
+        <button id="clear-name">Change</button>
+      </div>
+      ${requests.map(r => renderCard(r)).join('')}
+      <a href="request.html" class="new-req-btn">+ Submit a New Request</a>
+    `;
+
+    document.getElementById('clear-name')?.addEventListener('click', () => {
+      localStorage.removeItem('req_name');
+      nameInput.value = '';
+      resultsEl.innerHTML = '';
+      nameInput.focus();
+    });
+  }
+
+  function renderCard(r) {
+    const dateObj = new Date(r.date + 'T00:00:00');
+    const dateStr = dateObj.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = r.time ? fmtTime(r.time) : '';
+    const badgeClass = `badge-${r.status}`;
+
+    return `
+      <div class="req-card status-${r.status}">
+        <div class="req-card-top">
+          <div>
+            <div class="req-card-func">${r.function_name || 'No function'}</div>
+            <div class="req-card-date">${dateStr}${timeStr ? ' at ' + timeStr : ''}</div>
+          </div>
+          <span class="status-badge ${badgeClass}">${r.status}</span>
+        </div>
+        ${r.location ? `<div class="req-card-loc">📍 ${r.location}</div>` : ''}
+        ${r.notes ? `<div class="req-card-notes">${r.notes}</div>` : ''}
+        ${r.status === 'rejected' && r.reject_reason ? `<div class="req-card-reject">Reason: ${r.reject_reason}</div>` : ''}
+        ${r.status === 'accepted' ? `<div style="font-size:12px;color:var(--sage);margin-top:6px;font-weight:600">✓ Approved — shoot scheduled</div>` : ''}
+      </div>
+    `;
+  }
+
+  function fmtTime(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  }
+
+  // Register SW + push subscription
+  const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
+
+  async function setupPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.register('./status-sw.js');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const key = Uint8Array.from(atob(VAPID_PUBLIC_KEY.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      }
+
+      const name = localStorage.getItem('req_name');
+      if (!name) return;
+
+      const json = sub.toJSON();
+      await supabase.from('requester_push_subs').upsert({
+        requester_name: name,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth
+      }, { onConflict: 'endpoint' });
+    } catch (err) {
+      console.warn('Push setup failed:', err);
+    }
+  }
+
+  setupPush();
+</script>
+</body>
+</html>
