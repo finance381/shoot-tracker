@@ -2,6 +2,8 @@ name: Bump SW Version
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'service-worker.js'
 
 permissions:
   contents: write
