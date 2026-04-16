@@ -1802,3 +1802,25 @@ body { background: var(--cream); }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+.req-pull-refresh {
+  text-align: center;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terracotta);
+  background: var(--cream);
+  height: 0;
+  overflow: hidden;
+  transition: height .2s;
+}
+.req-pull-refresh.visible {
+  height: 40px;
+}
+.req-pull-refresh.refreshing {
+  height: 40px;
+}
+.req-pull-refresh.refreshing span { font-size: 0; }
+.req-pull-refresh.refreshing span::after {
+  content: 'Refreshing…';
+  font-size: 13px;
+}

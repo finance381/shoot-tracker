@@ -55,9 +55,12 @@ export async function renderRequesterApp(container) {
       <button class="req-app-tab ${activeTab === 'new' ? 'active' : ''}" data-tab="new">+ New Request</button>
     </div>
 
+    <div id="req-pull-refresh" class="req-pull-refresh"><span>↻ Release to refresh</span></div>
     <div class="req-app-content" id="req-app-content"></div>
     <div id="req-toast" class="toast hidden"></div>
   `;
+
+  setupRequesterPull(container);
 
   container.querySelector('#req-logout').addEventListener('click', () => {
     logoutRequester();
@@ -79,6 +82,16 @@ export async function renderRequesterApp(container) {
   }
 
   subscribePush(r);
+
+  // Auto-refresh when app comes back to foreground
+  if (!container._visibilitySetup) {
+    container._visibilitySetup = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && getRequester()) {
+        renderRequesterApp(container);
+      }
+    });
+  }
 }
 
 async function renderMyRequests(el, r) {
@@ -429,6 +442,51 @@ function showToast(msg) {
   el.textContent = msg;
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+function setupRequesterPull(container) {
+  const scrollEl = document.getElementById('requester-app');
+  const indicator = container.querySelector('#req-pull-refresh');
+  if (!scrollEl || !indicator || scrollEl._pullSetup) return;
+  scrollEl._pullSetup = true;
+
+  let startY = 0;
+  let pulling = false;
+
+  scrollEl.addEventListener('touchstart', (e) => {
+    if (scrollEl.scrollTop === 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 30 && scrollEl.scrollTop === 0) {
+      indicator.classList.add('visible');
+    } else {
+      indicator.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchend', async () => {
+    if (!pulling) return;
+    pulling = false;
+    if (indicator.classList.contains('visible')) {
+      indicator.classList.remove('visible');
+      indicator.classList.add('refreshing');
+      indicator.querySelector('span').textContent = '';
+      await renderRequesterApp(container);
+      setTimeout(() => {
+        const ind = container.querySelector('#req-pull-refresh');
+        if (ind) {
+          ind.classList.remove('refreshing');
+          ind.querySelector('span').textContent = '↻ Release to refresh';
+        }
+      }, 500);
+    }
+  });
 }
 
 function fmtTime(t) {
