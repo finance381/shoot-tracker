@@ -173,10 +173,10 @@ Deno.serve(async (req) => {
         notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} was declined.${reason ? " Reason: " + reason : ""}`;
       }
 
-      const { data: subs } = await supabase
-        .from("requester_push_subs")
-        .select("*")
-        .ilike("requester_name", `%${name}%`);
+      const reqId = body.requester_id;
+      const { data: subs } = reqId
+        ? await supabase.from("requester_push_subs").select("*").eq("requester_id", reqId)
+        : await supabase.from("requester_push_subs").select("*").ilike("requester_name", `%${name}%`);
 
       if (!subs?.length) {
         return new Response(JSON.stringify({ msg: "No requester subscriptions found" }));

@@ -413,6 +413,7 @@ async function subscribePush(r) {
     const json = sub.toJSON();
     await supabase.from('requester_push_subs').upsert({
       requester_name: r.display_name,
+      requester_id: r.id,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth
