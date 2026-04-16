@@ -1719,3 +1719,34 @@ body { background: var(--cream); }
   font-family: var(--font);
 }
 .req-form-submit:disabled { opacity: .6; }
+/* ========== REQUESTER FORM HEADER ========== */
+.req-form-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.req-form-icon { font-size: 36px; margin-bottom: 4px; }
+.req-form-title { font-size: 20px; font-weight: 800; color: var(--espresso); }
+.req-form-sub { font-size: 13px; color: var(--stone); margin-top: 4px; }
+
+/* ========== REQUESTER SUCCESS ========== */
+.req-success {
+  text-align: center;
+  padding: 40px 16px;
+}
+.req-success-icon { font-size: 48px; margin-bottom: 12px; }
+.req-success-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.req-success-text { font-size: 14px; color: var(--stone); line-height: 1.5; }
+.req-form-back {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 10px;
+  background: var(--sand);
+  color: var(--bark);
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: var(--font);
+}

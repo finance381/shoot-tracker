@@ -136,36 +136,42 @@ async function renderNewRequest(el, r) {
 
   el.innerHTML = `
     <div class="req-form">
-      <div class="req-form-group">
-        <label>Preferred Date *</label>
-        <input type="date" id="rq-date">
+      <div class="req-form-header">
+        <div class="req-form-icon">📸</div>
+        <div class="req-form-title">Request a Shoot</div>
+        <div class="req-form-sub">Fill in the details and our team will review</div>
       </div>
-      <div class="req-form-group">
-        <label>Preferred Time</label>
-        <input type="time" id="rq-time">
+      <div id="rq-error" class="req-form-error" style="display:none"></div>
+      <div class="form-row-2">
+        <div class="req-form-group">
+          <label>Preferred Date *</label>
+          <input type="date" id="rq-date">
+        </div>
+        <div class="req-form-group">
+          <label>Preferred Time</label>
+          <input type="time" id="rq-time">
+        </div>
       </div>
       <div class="req-form-group">
         <label>Function / Purpose *</label>
-        <input type="text" id="rq-function" placeholder="e.g. Wedding, Product launch">
+        <input type="text" id="rq-function" placeholder="e.g. Product launch, Wedding, Event">
       </div>
       <div class="req-form-group">
         <label>Location</label>
         <select id="rq-location">
-          <option value="">Select…</option>
+          <option value="">Select location…</option>
           ${locations.map(l => `<option value="${l.label}">${l.label}</option>`).join('')}
-          <option value="outdoor">🌳 Outdoor</option>
+          <option value="outdoor">🌳 Outdoor (specify in notes)</option>
         </select>
       </div>
       <div class="req-form-group">
-        <label>Notes</label>
-        <textarea id="rq-notes" rows="3" placeholder="Requirements, shot list…"></textarea>
+        <label>Notes / Special Requirements</label>
+        <textarea id="rq-notes" rows="3" placeholder="Shot list, wardrobe, props, specific requests…"></textarea>
       </div>
-      <div id="rq-error" class="req-form-error" style="display:none"></div>
       <button id="rq-submit" class="req-form-submit">Submit Request</button>
     </div>
   `;
 
-  // Default date = tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   el.querySelector('#rq-date').value = tomorrow.toISOString().slice(0, 10);
@@ -180,8 +186,8 @@ async function renderNewRequest(el, r) {
     const btn = el.querySelector('#rq-submit');
 
     errEl.style.display = 'none';
-    if (!date) { errEl.textContent = 'Select a date'; errEl.style.display = 'block'; return; }
-    if (!func) { errEl.textContent = 'Enter function/purpose'; errEl.style.display = 'block'; return; }
+    if (!date) { errEl.textContent = 'Please select a date'; errEl.style.display = 'block'; return; }
+    if (!func) { errEl.textContent = 'Please describe the function / purpose'; errEl.style.display = 'block'; return; }
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';
@@ -199,12 +205,24 @@ async function renderNewRequest(el, r) {
 
       if (error) throw error;
 
-      showToast('Request submitted!');
-      activeTab = 'requests';
-      const container = el.closest('#app') || el.closest('#requester-app');
-      if (container) renderRequesterApp(container);
+      el.innerHTML = `
+        <div class="req-success">
+          <div class="req-success-icon">✅</div>
+          <div class="req-success-title">Request Submitted!</div>
+          <div class="req-success-text">Our photography team will review your request and get back to you. Check the "My Requests" tab for updates.</div>
+          <button class="req-form-submit" id="rq-another" style="margin-top:20px">Submit Another Request</button>
+          <button class="req-form-back" id="rq-to-requests">View My Requests</button>
+        </div>
+      `;
+
+      el.querySelector('#rq-another').addEventListener('click', () => renderNewRequest(el, r));
+      el.querySelector('#rq-to-requests').addEventListener('click', () => {
+        activeTab = 'requests';
+        const container = el.closest('#requester-app');
+        if (container) renderRequesterApp(container);
+      });
     } catch (err) {
-      errEl.textContent = err.message || 'Failed to submit';
+      errEl.textContent = err.message || 'Something went wrong. Please try again.';
       errEl.style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Submit Request';
