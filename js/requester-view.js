@@ -95,12 +95,37 @@ async function renderMyRequests(el, r) {
     return;
   }
 
+  const allRequests = requests || [];
+
+  el.innerHTML = `
+    <div class="req-search-wrap">
+      <input type="text" id="rq-name-filter" class="req-search-input" placeholder="Filter by name…">
+    </div>
+    <div id="rq-list"></div>
+  `;
+
+  const listEl = el.querySelector('#rq-list');
+
+  function renderList(filter) {
+    const filtered = filter
+      ? allRequests.filter(req => (req.requested_by || '').toLowerCase().includes(filter.toLowerCase()))
+      : allRequests;
+    renderRequestCards(listEl, filtered, r);
+  }
+
+  el.querySelector('#rq-name-filter').addEventListener('input', (e) => {
+    renderList(e.target.value.trim());
+  });
+
+  renderList('');
+}
+
+function renderRequestCards(el, requests, r) {
   if (!requests?.length) {
     el.innerHTML = `
       <div class="req-empty">
         <div class="req-empty-icon">📭</div>
-        <div>No requests yet</div>
-        <div style="font-size:13px;margin-top:4px">Tap "New Request" to submit one</div>
+        <div>No requests found</div>
       </div>
     `;
     return;
@@ -118,6 +143,7 @@ async function renderMyRequests(el, r) {
           <div>
             <div class="req-list-func">${req.function_name || 'No function'}</div>
             <div class="req-list-date">${dateStr}${timeStr ? ' at ' + timeStr : ''}</div>
+            <div class="req-list-by">${req.requested_by || ''}</div>
           </div>
           <span class="req-list-badge ${badgeClass}">${req.status}</span>
         </div>
@@ -125,11 +151,146 @@ async function renderMyRequests(el, r) {
         ${req.notes ? `<div class="req-list-notes">${req.notes}</div>` : ''}
         ${req.status === 'rejected' && req.reject_reason ? `<div class="req-list-reject">Reason: ${req.reject_reason}</div>` : ''}
         ${req.status === 'accepted' ? `<div class="req-list-accepted">✓ Approved — shoot scheduled</div>` : ''}
+        ${req.status === 'pending' ? `
+          <div class="req-card-actions-row">
+            <button class="req-edit-btn" data-rid="${req.id}">✎ Edit</button>
+            <button class="req-delete-btn" data-rid="${req.id}">Delete</button>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
+
+  // Delete handlers
+  el.querySelectorAll('.req-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Delete this request?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Deleting…';
+      await supabase.from('shoot_requests').delete().eq('id', btn.dataset.rid);
+      showToast('Request deleted');
+      const filtered = requests.filter(rq => rq.id !== btn.dataset.rid);
+      renderRequestCards(el, filtered, r);
+    });
+  });
+
+  // Edit handlers
+  el.querySelectorAll('.req-edit-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const req = requests.find(rq => rq.id === btn.dataset.rid);
+      if (req) openEditModal(req, r, el, requests);
+    });
+  });
 }
 
+async function openEditModal(req, r, listEl, requests) {
+  document.getElementById('req-edit-modal')?.remove();
+
+  const { data: masters } = await supabase.from('masters').select('*').eq('type', 'location').order('sort_order');
+  const locations = masters || [];
+
+  const overlay = document.createElement('div');
+  overlay.id = 'req-edit-modal';
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="border-radius:20px 20px 0 0;">
+      <div class="modal-header">
+        <h2>Edit Request</h2>
+        <button class="btn-icon" id="re-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Your Name *</label>
+          <input type="text" id="re-name" value="${(req.requested_by || '').replace(/ \(.*\)$/, '')}">
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="re-date" value="${req.date || ''}">
+          </div>
+          <div class="form-group">
+            <label>Time</label>
+            <input type="time" id="re-time" value="${req.time || ''}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Function / Purpose *</label>
+          <input type="text" id="re-function" value="${req.function_name || ''}">
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <select id="re-location">
+            <option value="">Select…</option>
+            ${locations.map(l => `<option value="${l.label}" ${req.location === l.label ? 'selected' : ''}>${l.label}</option>`).join('')}
+            <option value="outdoor" ${req.location === 'outdoor' ? 'selected' : ''}>🌳 Outdoor</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="re-notes" rows="3">${req.notes || ''}</textarea>
+        </div>
+        <div id="re-error" class="auth-error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <span class="spacer"></span>
+        <button class="btn-secondary" id="re-cancel">Cancel</button>
+        <button class="btn-primary" id="re-save">Save</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('#re-close').addEventListener('click', close);
+  overlay.querySelector('#re-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#re-save').addEventListener('click', async () => {
+    const name = overlay.querySelector('#re-name').value.trim();
+    const date = overlay.querySelector('#re-date').value;
+    const time = overlay.querySelector('#re-time').value || null;
+    const func = overlay.querySelector('#re-function').value.trim();
+    const location = overlay.querySelector('#re-location').value;
+    const notes = overlay.querySelector('#re-notes').value.trim();
+    const errEl = overlay.querySelector('#re-error');
+
+    if (!name || !date || !func) {
+      errEl.textContent = 'Name, date and function are required';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const btn = overlay.querySelector('#re-save');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const { error } = await supabase.from('shoot_requests').update({
+        requested_by: name + ' (' + r.display_name + ')',
+        date, time,
+        function_name: func,
+        location, notes
+      }).eq('id', req.id);
+
+      if (error) throw error;
+
+      close();
+      showToast('Request updated');
+
+      // Refresh list
+      const { data: fresh } = await supabase.from('shoot_requests').select('*')
+        .eq('requester_id', r.id).order('created_at', { ascending: false });
+      renderRequestCards(listEl, fresh || [], r);
+    } catch (err) {
+      errEl.textContent = err.message || 'Update failed';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Save';
+    }
+  });
+}
 async function renderNewRequest(el, r) {
   const { data: masters } = await supabase.from('masters').select('*').order('sort_order');
   const locations = (masters || []).filter(m => m.type === 'location');
