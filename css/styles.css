@@ -1798,3 +1798,7 @@ body { background: var(--cream); }
   cursor: pointer;
   font-family: var(--font);
 }
+#requester-app {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
