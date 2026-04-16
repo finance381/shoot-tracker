@@ -142,6 +142,10 @@ async function renderNewRequest(el, r) {
         <div class="req-form-sub">Fill in the details and our team will review</div>
       </div>
       <div id="rq-error" class="req-form-error" style="display:none"></div>
+      <div class="req-form-group">
+        <label>Your Name *</label>
+        <input type="text" id="rq-name" placeholder="e.g. Sahaj, Krati">
+      </div>
       <div class="form-row-2">
         <div class="req-form-group">
           <label>Preferred Date *</label>
@@ -185,7 +189,9 @@ async function renderNewRequest(el, r) {
     const errEl = el.querySelector('#rq-error');
     const btn = el.querySelector('#rq-submit');
 
+    const name = el.querySelector('#rq-name').value.trim();
     errEl.style.display = 'none';
+    if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
     if (!date) { errEl.textContent = 'Please select a date'; errEl.style.display = 'block'; return; }
     if (!func) { errEl.textContent = 'Please describe the function / purpose'; errEl.style.display = 'block'; return; }
 
@@ -194,7 +200,7 @@ async function renderNewRequest(el, r) {
 
     try {
       const { error } = await supabase.from('shoot_requests').insert({
-        requested_by: r.display_name,
+        requested_by: name + ' (' + r.display_name + ')',
         requester_id: r.id,
         date,
         time,
