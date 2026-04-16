@@ -1804,14 +1804,16 @@ body { background: var(--cream); }
 }
 .req-pull-refresh {
   text-align: center;
-  padding: 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--terracotta);
   background: var(--cream);
-  height: 0;
-  overflow: hidden;
-  transition: height .2s;
+  display: none;
+  padding: 10px;
+}
+.req-pull-refresh.visible,
+.req-pull-refresh.refreshing {
+  display: block;
 }
 .req-pull-refresh.visible {
   height: 40px;
