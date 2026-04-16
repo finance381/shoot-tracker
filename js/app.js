@@ -700,21 +700,23 @@ function registerSW() {
 
 function setupPullToRefresh() {
   const main = document.getElementById('main-content');
-  const indicator = document.getElementById('pull-refresh');
-  if (!main || !indicator) return;
+  if (!main) return;
 
   let startY = 0;
   let pulling = false;
+  let refreshing = false;
 
   main.addEventListener('touchstart', (e) => {
-    if (main.scrollTop === 0) {
+    if (main.scrollTop === 0 && !refreshing) {
       startY = e.touches[0].clientY;
       pulling = true;
     }
   }, { passive: true });
 
   main.addEventListener('touchmove', (e) => {
-    if (!pulling) return;
+    if (!pulling || refreshing) return;
+    const indicator = document.getElementById('pull-refresh');
+    if (!indicator) return;
     const diff = e.touches[0].clientY - startY;
     if (diff > 30 && main.scrollTop === 0) {
       indicator.classList.add('visible');
@@ -724,16 +726,24 @@ function setupPullToRefresh() {
   }, { passive: true });
 
   main.addEventListener('touchend', async () => {
-    if (!pulling) return;
+    if (!pulling || refreshing) return;
     pulling = false;
+    const indicator = document.getElementById('pull-refresh');
+    if (!indicator) return;
     if (indicator.classList.contains('visible')) {
+      refreshing = true;
       indicator.classList.remove('visible');
       indicator.classList.add('refreshing');
       indicator.querySelector('span').textContent = '';
-      await pages[currentPage]();
+      try {
+        await pages[currentPage]();
+      } catch (err) {
+        console.error('Refresh error:', err);
+      }
       setTimeout(() => {
         indicator.classList.remove('refreshing');
         indicator.querySelector('span').textContent = '↻ Release to refresh';
+        refreshing = false;
       }, 500);
     }
   });

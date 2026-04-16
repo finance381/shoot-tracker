@@ -68,9 +68,17 @@ export async function renderRequesterApp(container) {
   });
 
   container.querySelectorAll('.req-app-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       activeTab = btn.dataset.tab;
-      renderRequesterApp(container);
+      // Only re-render content, not entire app
+      container.querySelectorAll('.req-app-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const content = container.querySelector('#req-app-content');
+      if (activeTab === 'requests') {
+        await renderMyRequests(content, getRequester());
+      } else {
+        await renderNewRequest(content, getRequester());
+      }
     });
   });
 
@@ -81,16 +89,9 @@ export async function renderRequesterApp(container) {
     await renderNewRequest(content, r);
   }
 
-  subscribePush(r);
-
-  // Auto-refresh when app comes back to foreground
-  if (!container._visibilitySetup) {
-    container._visibilitySetup = true;
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && getRequester()) {
-        renderRequesterApp(container);
-      }
-    });
+  if (!container._pushDone) {
+    container._pushDone = true;
+    subscribePush(r);
   }
 }
 
