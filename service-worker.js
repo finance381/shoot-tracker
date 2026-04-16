@@ -14,6 +14,7 @@ const SHELL_FILES = [
   './js/team.js',
   './js/reports.js',
   './js/requests.js',
+  './js/requester-view.js',
   './js/sheets-sync.js',
   './manifest.json'
 ];

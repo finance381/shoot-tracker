@@ -1590,3 +1590,132 @@ body { background: var(--cream); }
   color: var(--terracotta);
   line-height: 1;
 }
+/* ========== AUTH DIVIDER ========== */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--stone);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ========== REQUESTER LOGIN ========== */
+#requester-login {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(160deg, var(--cream) 0%, var(--sand) 100%);
+}
+
+/* ========== REQUESTER APP ========== */
+#requester-app {
+  min-height: 100dvh;
+  background: var(--cream);
+}
+.req-app-header {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+.req-app-title { font-size: 18px; font-weight: 800; }
+.req-app-sub { font-size: 12px; color: var(--stone); }
+.req-app-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 16px 16px 0;
+}
+.req-app-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--sand);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stone);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.req-app-tab.active {
+  background: var(--espresso);
+  color: var(--cream);
+}
+.req-app-content {
+  padding: 16px;
+}
+.req-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--stone);
+  font-size: 15px;
+}
+.req-empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* Requester request cards */
+.req-list-card {
+  background: var(--white);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 12px rgba(45,36,24,.06);
+  border-left: 4px solid var(--amber);
+}
+.req-list-card.req-list-accepted { border-left-color: var(--sage); }
+.req-list-card.req-list-rejected { border-left-color: #C0392B; }
+.req-list-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.req-list-func { font-size: 15px; font-weight: 700; }
+.req-list-date { font-size: 13px; color: var(--stone); margin-top: 2px; }
+.req-list-loc { font-size: 12px; color: var(--stone); margin-top: 4px; }
+.req-list-notes { font-size: 12px; color: var(--stone); margin-top: 4px; font-style: italic; }
+.req-list-reject { font-size: 12px; color: #C0392B; margin-top: 6px; font-weight: 600; }
+.req-list-accepted { font-size: 12px; color: var(--sage); margin-top: 6px; font-weight: 600; }
+.req-list-badge {
+  font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 12px;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.req-badge-pending { background: var(--amber-bg); color: var(--amber); }
+.req-badge-accepted { background: var(--sage-bg); color: var(--sage); }
+.req-badge-rejected { background: #FFF0F0; color: #C0392B; }
+
+/* Requester form */
+.req-form { padding: 4px 0; }
+.req-form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.req-form-group label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bark); }
+.req-form-group input,
+.req-form-group select,
+.req-form-group textarea {
+  padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border);
+  background: var(--cream); color: var(--espresso); font-size: 15px;
+  font-family: var(--font); outline: none;
+}
+.req-form-group input:focus,
+.req-form-group select:focus,
+.req-form-group textarea:focus { border-color: var(--terracotta); }
+.req-form-error {
+  background: #FFF0F0; color: #C0392B; font-size: 13px; font-weight: 600;
+  padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;
+}
+.req-form-submit {
+  width: 100%; padding: 14px; border-radius: 10px; background: var(--terracotta);
+  color: #fff; border: none; font-weight: 700; font-size: 16px; cursor: pointer;
+  font-family: var(--font);
+}
+.req-form-submit:disabled { opacity: .6; }

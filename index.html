@@ -38,9 +38,35 @@
       <p id="auth-setup-link" class="auth-toggle" style="color:var(--stone);font-size:13px;cursor:pointer;">
         First time? <span style="color:var(--terracotta);font-weight:700;">Set up your password</span>
       </p>
-
+      <div class="auth-divider"><span>or</span></div>
+      <button id="auth-requester-toggle" class="btn-secondary btn-full">I'm a Venue / Department</button>
     </div>
   </div>
+
+  <!-- ===== REQUESTER LOGIN ===== -->
+  <div id="requester-login" class="hidden">
+    <div class="auth-card">
+      <div class="auth-logo">📋</div>
+      <h1 class="auth-title">Requester Login</h1>
+      <p class="auth-sub">For venues & departments</p>
+      <div id="req-auth-error" class="auth-error hidden"></div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="req-username" placeholder="e.g. pushpanjali" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="req-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button id="req-login-btn" class="btn-primary btn-full">Log in</button>
+      <p class="auth-toggle" style="color:var(--stone);font-size:13px;cursor:pointer;" id="req-back-toggle">
+        <span style="color:var(--terracotta);font-weight:700;">← Back to team login</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== REQUESTER APP ===== -->
+  <div id="requester-app" class="hidden"></div>
 
   <!-- ===== MAIN APP ===== -->
   <div id="app" class="hidden">

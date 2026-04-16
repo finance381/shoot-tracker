@@ -7,6 +7,7 @@ import { render as renderTeam } from './team.js';
 import { render as renderReports } from './reports.js';
 import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
+import { getRequester, loginRequester, logoutRequester, renderRequesterApp } from './requester-view.js';
 
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
@@ -24,6 +25,13 @@ let appSetupDone = false;
 
 // ===== INIT =====
 async function init() {
+  // Check requester login first
+  const req = getRequester();
+  if (req) {
+    showRequesterApp();
+    return;
+  }
+
   const user = await initAuth();
 
   if (user && getMember()) {
@@ -157,8 +165,69 @@ function showAuth() {
       newBtn.textContent = 'Log in';
     }
   });
+  // Requester toggle
+  const reqToggle = document.getElementById('auth-requester-toggle');
+  if (reqToggle) {
+    const newToggle = reqToggle.cloneNode(true);
+    reqToggle.parentNode.replaceChild(newToggle, reqToggle);
+    newToggle.addEventListener('click', () => {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('requester-login').classList.remove('hidden');
+    });
+  }
+
+  const reqBack = document.getElementById('req-back-toggle');
+  if (reqBack) {
+    const newBack = reqBack.cloneNode(true);
+    reqBack.parentNode.replaceChild(newBack, reqBack);
+    newBack.addEventListener('click', () => {
+      document.getElementById('requester-login').classList.add('hidden');
+      document.getElementById('auth-screen').classList.remove('hidden');
+    });
+  }
+
+  const reqLoginBtn = document.getElementById('req-login-btn');
+  if (reqLoginBtn) {
+    const newReqBtn = reqLoginBtn.cloneNode(true);
+    reqLoginBtn.parentNode.replaceChild(newReqBtn, reqLoginBtn);
+    newReqBtn.addEventListener('click', async () => {
+      const username = document.getElementById('req-username').value.trim();
+      const password = document.getElementById('req-password').value;
+      const errEl = document.getElementById('req-auth-error');
+      errEl.classList.add('hidden');
+
+      if (!username || !password) {
+        errEl.textContent = 'Enter username and password';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      newReqBtn.disabled = true;
+      newReqBtn.textContent = 'Logging in…';
+
+      try {
+        await loginRequester(username, password);
+        showRequesterApp();
+      } catch (err) {
+        errEl.textContent = err.message || 'Login failed';
+        errEl.classList.remove('hidden');
+        newReqBtn.disabled = false;
+        newReqBtn.textContent = 'Log in';
+      }
+    });
+  }
 }
 
+// ===== REQUESTER APP =====
+function showRequesterApp() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('requester-login').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  const reqApp = document.getElementById('requester-app');
+  reqApp.classList.remove('hidden');
+  renderRequesterApp(reqApp);
+  registerSW();
+}
 // ===== MAIN APP =====
 function showApp() {
   document.getElementById('auth-screen').classList.add('hidden');
