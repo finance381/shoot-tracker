@@ -98,11 +98,24 @@ export async function renderRequesterApp(container) {
 async function renderMyRequests(el, r) {
   el.innerHTML = '<div style="text-align:center;padding:20px;color:#9C8E80">Loading…</div>';
 
-  const { data: requests, error } = await supabase
+  // Fetch by requester_id, fallback to location match for old data
+  const { data: byId } = await supabase
     .from('shoot_requests')
     .select('*')
     .eq('requester_id', r.id)
     .order('created_at', { ascending: false });
+
+  const { data: byLoc } = r.type === 'venue'
+    ? await supabase
+        .from('shoot_requests')
+        .select('*')
+        .eq('location', r.display_name)
+        .is('requester_id', null)
+        .order('created_at', { ascending: false })
+    : { data: [] };
+
+  const requests = [...(byId || []), ...(byLoc || [])];
+  const error = null;
 
   if (error) {
     el.innerHTML = `<div class="req-empty"><div class="req-empty-icon">⚠️</div>${error.message}</div>`;
@@ -339,7 +352,7 @@ async function renderNewRequest(el, r) {
         <label>Location</label>
         <select id="rq-location">
           <option value="">Select location…</option>
-          ${locations.map(l => `<option value="${l.label}">${l.label}</option>`).join('')}
+          ${locations.map(l => `<option value="${l.label}" ${r.type === 'venue' && l.label === r.display_name ? 'selected' : ''}>${l.label}</option>`).join('')}
           <option value="outdoor">🌳 Outdoor (specify in notes)</option>
         </select>
       </div>
