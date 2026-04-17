@@ -25,7 +25,8 @@ export async function render() {
     supabase.from('team_members').select('id, name')
   ]);
 
-  if (myGen !== renderGen) return;
+  // Only bail if a NEWER render has started AND completed data fetch
+  if (myGen !== renderGen && el.querySelector('.cal-grid')) return;
 
   const all = shootsRes.data || [];
   const team = teamRes.data || [];

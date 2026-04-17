@@ -21,7 +21,7 @@ export async function render() {
     supabase.from('team_members').select('id, name')
   ]);
 
-  if (myGen !== renderGen) return;
+  if (myGen !== renderGen && el.querySelector('.requests-tabs')) return;
 
   const requests = reqRes.data || [];
   const team = teamRes.data || [];

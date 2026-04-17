@@ -62,7 +62,8 @@ export async function render() {
     supabase.from('masters').select('*').eq('type', 'location').order('sort_order')
   ]);
 
-  if (myGen !== renderGen) return;
+  // Only bail if a NEWER render has started AND completed data fetch
+  if (myGen !== renderGen && el.querySelector('.shoots-filter-section')) return;
 
   const shoots = shootsRes.data || [];
   teamCache = teamRes.data || [];
