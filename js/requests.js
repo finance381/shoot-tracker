@@ -54,57 +54,57 @@ export async function render() {
     }
   `;
 
-  // Tab handlers
-  el.querySelectorAll('.req-tab').forEach(btn => {
-    btn.addEventListener('click', () => { filterTab = btn.dataset.tab; render(); });
-  });
+  // Single delegated click handler — survives re-renders
+  if (el._delegatedClick) el.removeEventListener('click', el._delegatedClick);
 
-  // Copy link
-  el.querySelector('#copy-req-link')?.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(requestFormURL);
-      const btn = el.querySelector('#copy-req-link');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => { btn.textContent = '📋 Copy Link'; }, 2000);
-    } catch {
-      window.dispatchEvent(new CustomEvent('toast', { detail: 'Could not copy — long press the link instead' }));
+  el._delegatedClick = async (e) => {
+    const tabBtn = e.target.closest('.req-tab');
+    if (tabBtn) { filterTab = tabBtn.dataset.tab; render(); return; }
+
+    const copyBtn = e.target.closest('#copy-req-link');
+    if (copyBtn) {
+      try {
+        await navigator.clipboard.writeText(requestFormURL);
+        copyBtn.textContent = '✓ Copied!';
+        setTimeout(() => { copyBtn.textContent = '📋 Copy Link'; }, 2000);
+      } catch {
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Could not copy — long press the link instead' }));
+      }
+      return;
     }
-  });
 
-  // Accept/reject handlers
-  el.querySelectorAll('.req-accept-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    const acceptBtn = e.target.closest('.req-accept-btn');
+    if (acceptBtn) {
       e.stopPropagation();
-      openAcceptModal(requests.find(r => r.id === btn.dataset.rid), team);
-    });
-  });
+      openAcceptModal(requests.find(r => r.id === acceptBtn.dataset.rid), team);
+      return;
+    }
 
-  el.querySelectorAll('.req-reject-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    const rejectBtn = e.target.closest('.req-reject-btn');
+    if (rejectBtn) {
       e.stopPropagation();
-      const rid = btn.dataset.rid;
+      const rid = rejectBtn.dataset.rid;
       const reason = prompt('Reason for rejecting (optional):') || '';
       const me = getMember();
-
       await supabase.from('shoot_requests').update({
         status: 'rejected',
         reject_reason: reason,
         reviewed_by: me?.id,
         reviewed_at: new Date().toISOString()
       }).eq('id', rid);
-
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Request rejected' }));
       render();
-    });
-  });
+      return;
+    }
 
-  // Card click → open detail
-  el.querySelectorAll('.req-card').forEach(card => {
-    card.addEventListener('click', () => {
+    const card = e.target.closest('.req-card');
+    if (card) {
       const req = requests.find(r => r.id === card.dataset.rid);
       if (req) openDetailModal(req, team);
-    });
-  });
+    }
+  };
+
+  el.addEventListener('click', el._delegatedClick);
 }
 
 function renderRequestCard(r, team) {
