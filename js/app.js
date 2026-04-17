@@ -9,6 +9,13 @@ import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
 import { getRequester, loginRequester, logoutRequester, renderRequesterApp } from './requester-view.js';
 
+window.addEventListener('error', (e) => {
+  alert('ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  alert('PROMISE: ' + (e.reason?.message || e.reason));
+});
+
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
 const pages = {
