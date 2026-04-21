@@ -30,6 +30,23 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { type } = body;
+    if (type === "test") {
+      const { data: subs } = await supabase
+        .from("push_subscriptions")
+        .select("*")
+        .eq("member_id", body.member_id);
+
+      if (!subs?.length) return new Response(JSON.stringify({ error: "No subscriptions" }));
+
+      const results = await Promise.allSettled(
+        subs.map((sub: any) => sendToSub(sub, {
+          title: body.title || "Test",
+          body: body.body || "Test push",
+          tag: "test-" + Date.now()
+        }))
+      );
+      return new Response(JSON.stringify({ sent: results.length, results }));
+    }
 
     if (type === "daily_summary") {
       const tomorrow = new Date();
@@ -167,7 +184,18 @@ Deno.serve(async (req) => {
       let title, notifBody;
       if (status === "accepted") {
         title = "✅ Request Approved!";
-        notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} has been approved and scheduled.`;
+        // Fetch assignee name
+        let assigneeName = "";
+        if (body.shoot_id) {
+          const { data: shoot } = await supabase
+            .from("shoots")
+            .select("assignee_id, external_assignee, team_members(name)")
+            .eq("id", body.shoot_id)
+            .maybeSingle();
+          if (shoot?.external_assignee) assigneeName = shoot.external_assignee;
+          else if (shoot?.team_members?.name) assigneeName = shoot.team_members.name;
+        }
+        notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} has been approved.${assigneeName ? " Assigned to " + assigneeName + "." : ""}`;
       } else {
         title = "❌ Request Declined";
         notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} was declined.${reason ? " Reason: " + reason : ""}`;

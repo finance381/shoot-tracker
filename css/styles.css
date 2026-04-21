@@ -1829,3 +1829,32 @@ body { background: var(--cream); }
   content: 'Refreshing…';
   font-size: 13px;
 }
+.day-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.day-search {
+  flex: 2;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border);
+  background: var(--cream);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  min-width: 0;
+}
+.day-search:focus { border-color: var(--terracotta); }
+.day-assignee-filter {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border);
+  background: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  outline: none;
+  min-width: 0;
+}

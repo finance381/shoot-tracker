@@ -105,6 +105,15 @@ function openDaySheet(date, shoots, team) {
         <button class="btn-icon" id="day-sheet-close">✕</button>
       </div>
       <div class="modal-body" style="padding-top:8px;">
+        <div class="day-filter-row">
+          <input type="text" id="day-search" class="day-search" placeholder="Search venue, function…">
+          <select id="day-assignee" class="day-assignee-filter">
+            <option value="All">All Assignees</option>
+            ${team.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+            <option value="__external">External</option>
+          </select>
+        </div>
+        <div id="day-shoot-list">
         ${shoots.map(s => {
           const ts = s.type_statuses || {};
           const types = Object.keys(ts).length > 0
@@ -127,6 +136,7 @@ function openDaySheet(date, shoots, team) {
               </div>
             </div>`;
         }).join('')}
+        </div>
         <button class="day-add-btn" id="day-add-shoot">+ Add shoot for this day</button>
       </div>
     </div>
@@ -137,6 +147,31 @@ function openDaySheet(date, shoots, team) {
   const close = () => overlay.remove();
   overlay.querySelector('#day-sheet-close').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  // Filter handlers
+  const searchEl = overlay.querySelector('#day-search');
+  const assigneeEl = overlay.querySelector('#day-assignee');
+  const listEl = overlay.querySelector('#day-shoot-list');
+
+  function applyFilters() {
+    const q = searchEl.value.trim().toLowerCase();
+    const assignee = assigneeEl.value;
+    listEl.querySelectorAll('.day-shoot-card').forEach(card => {
+      const sid = card.dataset.sid;
+      const s = shoots.find(sh => sh.id === sid);
+      if (!s) return;
+      let show = true;
+      if (assignee === '__external') show = !!s.external_assignee;
+      else if (assignee !== 'All') show = s.assignee_id === assignee;
+      if (show && q) {
+        const haystack = [s.client, s.location, s.outdoor_venue, s.notes, s.type, s.external_assignee, ...(s.departments || [])].filter(Boolean).join(' ').toLowerCase();
+        show = haystack.includes(q);
+      }
+      card.style.display = show ? '' : 'none';
+    });
+  }
+
+  searchEl.addEventListener('input', applyFilters);
+  assigneeEl.addEventListener('change', applyFilters);
 
   overlay.querySelectorAll('.day-shoot-card').forEach(card => {
     card.addEventListener('click', async () => {

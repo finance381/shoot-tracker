@@ -101,7 +101,7 @@ async function renderMyRequests(el, r) {
   // Fetch by requester_id, fallback to location match for old data
   const { data: byId } = await supabase
     .from('shoot_requests')
-    .select('*')
+    .select('*, shoots(assignee_id, external_assignee, team_members(name))')
     .eq('requester_id', r.id)
     .order('created_at', { ascending: false });
 
@@ -177,7 +177,10 @@ function renderRequestCards(el, requests, r) {
         ${req.location ? `<div class="req-list-loc">📍 ${req.location}</div>` : ''}
         ${req.notes ? `<div class="req-list-notes">${req.notes}</div>` : ''}
         ${req.status === 'rejected' && req.reject_reason ? `<div class="req-list-reject">Reason: ${req.reject_reason}</div>` : ''}
-        ${req.status === 'accepted' ? `<div class="req-list-accepted">✓ Approved — shoot scheduled</div>` : ''}
+        ${req.status === 'accepted' ? (() => {
+          const assignee = req.shoots?.external_assignee || req.shoots?.team_members?.name || '';
+          return `<div class="req-list-accepted">✓ Approved${assignee ? ' — Assigned to ' + assignee : ' — shoot scheduled'}</div>`;
+        })() : ''}
         ${req.status === 'pending' ? `
           <div class="req-card-actions-row">
             <button class="req-edit-btn" data-rid="${req.id}">✎ Edit</button>
