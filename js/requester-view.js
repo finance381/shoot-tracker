@@ -99,11 +99,39 @@ async function renderMyRequests(el, r) {
   el.innerHTML = '<div style="text-align:center;padding:20px;color:#9C8E80">Loading…</div>';
 
   // Fetch by requester_id, fallback to location match for old data
-  const { data: byId } = await supabase
+  const { data: byId, error: byIdErr } = await supabase
     .from('shoot_requests')
-    .select('*, shoots(assignee_id, external_assignee, team_members(name))')
+    .select('*')
     .eq('requester_id', r.id)
     .order('created_at', { ascending: false });
+
+  if (byIdErr) console.error('Fetch requests error:', byIdErr);
+
+  // Fetch assignees separately for accepted requests
+  const acceptedWithShoot = (byId || []).filter(r2 => r2.status === 'accepted' && r2.shoot_id);
+  if (acceptedWithShoot.length > 0) {
+    const shootIds = acceptedWithShoot.map(r2 => r2.shoot_id);
+    const { data: shootsData } = await supabase
+      .from('shoots')
+      .select('id, assignee_id, external_assignee')
+      .in('id', shootIds);
+
+    const { data: teamData } = await supabase
+      .from('team_members')
+      .select('id, name');
+
+    const shootMap = {};
+    (shootsData || []).forEach(s => {
+      const member = (teamData || []).find(t => t.id === s.assignee_id);
+      shootMap[s.id] = s.external_assignee || member?.name || '';
+    });
+
+    (byId || []).forEach(req => {
+      if (req.shoot_id && shootMap[req.shoot_id]) {
+        req.assignee_name = shootMap[req.shoot_id];
+      }
+    });
+  }
 
   const { data: byLoc } = r.type === 'venue'
     ? await supabase
@@ -177,10 +205,7 @@ function renderRequestCards(el, requests, r) {
         ${req.location ? `<div class="req-list-loc">📍 ${req.location}</div>` : ''}
         ${req.notes ? `<div class="req-list-notes">${req.notes}</div>` : ''}
         ${req.status === 'rejected' && req.reject_reason ? `<div class="req-list-reject">Reason: ${req.reject_reason}</div>` : ''}
-        ${req.status === 'accepted' ? (() => {
-          const assignee = req.shoots?.external_assignee || req.shoots?.team_members?.name || '';
-          return `<div class="req-list-accepted">✓ Approved${assignee ? ' — Assigned to ' + assignee : ' — shoot scheduled'}</div>`;
-        })() : ''}
+        ${req.status === 'accepted' ? `<div class="req-list-accepted">✓ Approved${req.assignee_name ? ' — Assigned to ' + req.assignee_name : ' — shoot scheduled'}</div>` : ''}
         ${req.status === 'pending' ? `
           <div class="req-card-actions-row">
             <button class="req-edit-btn" data-rid="${req.id}">✎ Edit</button>
