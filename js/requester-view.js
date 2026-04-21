@@ -131,6 +131,8 @@ async function renderMyRequests(el, r) {
         req.assignee_name = shootMap[req.shoot_id];
       }
     });
+    console.log('Assignee map:', shootMap);
+    console.log('Requests after tagging:', byId);
   }
 
   const { data: byLoc } = r.type === 'venue'

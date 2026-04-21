@@ -1623,8 +1623,10 @@ body { background: var(--cream); }
 
 /* ========== REQUESTER APP ========== */
 #requester-app {
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--cream);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .req-app-header {
   position: sticky;
