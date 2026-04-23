@@ -15,7 +15,16 @@ window.addEventListener('error', (e) => {
 window.addEventListener('unhandledrejection', (e) => {
   alert('PROMISE: ' + (e.reason?.message || e.reason));
 });
-
+// Proactive session refresh after idle/tab switch
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  try {
+    const { error } = await supabase.auth.getSession();
+    if (error) location.reload();
+  } catch {
+    location.reload();
+  }
+});
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
 const pages = {
@@ -275,9 +284,22 @@ function navigate(page) {
   document.getElementById(`page-${page}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-  pages[page]().catch(err => {
-    if (renderGeneration === gen) console.error('Page render error:', err);
-  });
+
+  const timeout = setTimeout(() => {
+    if (renderGeneration === gen) {
+      const el = document.getElementById(`page-${page}`);
+      if (el && !el.querySelector('.stats-grid, .cal-grid, .shoots-filter-section, .requests-tabs')) {
+        el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--stone)"><p>Taking too long to load</p><button class="btn-primary" onclick="location.reload()">Reload app</button></div>';
+      }
+    }
+  }, 12000);
+
+  pages[page]()
+    .then(() => clearTimeout(timeout))
+    .catch(err => {
+      clearTimeout(timeout);
+      if (renderGeneration === gen) console.error('Page render error:', err);
+    });
 }
 
 function setupNav() {
