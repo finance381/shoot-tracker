@@ -18,7 +18,7 @@ export async function render() {
     supabase.from('team_members').select('id, name')
   ]);
 
-  if (myGen !== renderGen) return;
+  if (myGen !== renderGen && el.querySelector('.stats-grid')) return;
 
   const shoots = shootsRes.data || [];
   const team = teamRes.data || [];

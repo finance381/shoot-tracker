@@ -113,6 +113,7 @@ function openDaySheet(date, shoots, team) {
             <option value="__external">External</option>
           </select>
         </div>
+        <button class="day-add-btn" id="day-add-shoot">+ Add shoot for this day</button>
         <div id="day-shoot-list">
         ${shoots.map(s => {
           const ts = s.type_statuses || {};
@@ -137,7 +138,6 @@ function openDaySheet(date, shoots, team) {
             </div>`;
         }).join('')}
         </div>
-        <button class="day-add-btn" id="day-add-shoot">+ Add shoot for this day</button>
       </div>
     </div>
   `;

@@ -189,11 +189,19 @@ Deno.serve(async (req) => {
         if (body.shoot_id) {
           const { data: shoot } = await supabase
             .from("shoots")
-            .select("assignee_id, external_assignee, team_members(name)")
+            .select("assignee_id, external_assignee")
             .eq("id", body.shoot_id)
             .maybeSingle();
-          if (shoot?.external_assignee) assigneeName = shoot.external_assignee;
-          else if (shoot?.team_members?.name) assigneeName = shoot.team_members.name;
+          if (shoot?.external_assignee) {
+            assigneeName = shoot.external_assignee;
+          } else if (shoot?.assignee_id) {
+            const { data: member } = await supabase
+              .from("team_members")
+              .select("name")
+              .eq("id", shoot.assignee_id)
+              .maybeSingle();
+            assigneeName = member?.name || "";
+          }
         }
         notifBody = `Your shoot request${func ? " for " + func : ""}${dateStr ? " on " + dateStr : ""} has been approved.${assigneeName ? " Assigned to " + assigneeName + "." : ""}`;
       } else {
