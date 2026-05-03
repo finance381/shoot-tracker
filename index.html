@@ -165,8 +165,9 @@
           <select id="s-assignee"></select>
         </div>
         <div class="form-group hidden" id="s-external-group">
-          <label>External Person Name</label>
-          <input type="text" id="s-external" placeholder="e.g. Rahul (freelancer)">
+          <label id="s-external-label">External Person Name</label>
+          <input type="text" id="s-external" list="s-external-suggestions" placeholder="e.g. Rahul (freelancer)" autocomplete="off">
+          <datalist id="s-external-suggestions"></datalist>
         </div>
         <div class="form-group">
           <label>Function</label>
