@@ -453,20 +453,14 @@ function setupShootModal() {
       team.map(m =>
         `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
       ).join('') +
-      `<option value="__external" ${isExternal ? 'selected' : ''}>📷 External</option>` +
-      `<option value="__outdoor" ${shoot?.assignee_id === '__outdoor' ? 'selected' : ''}>🌳 Outdoor</option>`;
+      `<option value="__external" ${isExternal ? 'selected' : ''}>📷 External</option>`;
 
     const extGroup = document.getElementById('s-external-group');
     const extInput = document.getElementById('s-external');
-    const showExt = isExternal || assigneeSel.value === '__outdoor';
-    extGroup.classList.toggle('hidden', !showExt);
-    extInput.value = shoot?.external_assignee || shoot?.outdoor_name || '';
-    extInput.placeholder = isExternal ? 'External photographer name' : 'Outdoor photographer name';
+    extGroup.classList.toggle('hidden', !isExternal);
+    extInput.value = shoot?.external_assignee || '';
     assigneeSel.onchange = () => {
-      const v = assigneeSel.value;
-      const show = v === '__external' || v === '__outdoor';
-      extGroup.classList.toggle('hidden', !show);
-      extInput.placeholder = v === '__outdoor' ? 'Outdoor photographer name' : 'External photographer name';
+      extGroup.classList.toggle('hidden', assigneeSel.value !== '__external');
     };
 
     // Populate name suggestions from past shoots
@@ -593,9 +587,8 @@ function setupShootModal() {
     const requested_by = document.getElementById('s-requested-by').value.trim();
     const notes    = document.getElementById('s-notes').value.trim();
     const assigneeVal = document.getElementById('s-assignee').value;
-    const isSpecial = assigneeVal === '__external' || assigneeVal === '__outdoor';
-    const assignee_id = isSpecial ? assigneeVal : (assigneeVal || null);
-    const external_assignee = isSpecial ? document.getElementById('s-external').value.trim() : '';
+    const assignee_id = assigneeVal === '__external' ? null : (assigneeVal || null);
+    const external_assignee = assigneeVal === '__external' ? document.getElementById('s-external').value.trim() : '';
 
     if (!date) return;
 

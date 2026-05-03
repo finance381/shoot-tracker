@@ -200,7 +200,14 @@ async function openAcceptModal(req, team) {
           <label>Assign Photographer *</label>
           <select id="acc-assignee">
             ${team.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+            <option value="__external">📷 External</option>
+            <option value="__outdoor">🌳 Outdoor</option>
           </select>
+        </div>
+        <div class="form-group hidden" id="acc-ext-group">
+          <label id="acc-ext-label">External Person Name</label>
+          <input type="text" id="acc-ext-name" list="acc-ext-suggestions" placeholder="e.g. Rahul (freelancer)" autocomplete="off">
+          <datalist id="acc-ext-suggestions"></datalist>
         </div>
 
         <div class="form-group">
@@ -265,6 +272,28 @@ async function openAcceptModal(req, team) {
     outdoorGrp.classList.toggle('hidden', locSel.value !== '__outdoor');
   });
 
+  // External/Outdoor assignee toggle
+  const accAssignee = overlay.querySelector('#acc-assignee');
+  const accExtGrp = overlay.querySelector('#acc-ext-group');
+  const accExtInput = overlay.querySelector('#acc-ext-name');
+  const accExtLabel = overlay.querySelector('#acc-ext-label');
+  accAssignee.addEventListener('change', () => {
+    const v = accAssignee.value;
+    const show = v === '__external' || v === '__outdoor';
+    accExtGrp.classList.toggle('hidden', !show);
+    accExtLabel.textContent = v === '__outdoor' ? 'Outdoor Photographer Name' : 'External Person Name';
+    accExtInput.placeholder = v === '__outdoor' ? 'Outdoor photographer name' : 'e.g. Rahul (freelancer)';
+  });
+
+  // Populate name suggestions
+  const { data: pastNames } = await supabase
+    .from('shoots')
+    .select('external_assignee')
+    .or('assignee_id.eq.__external,assignee_id.eq.__outdoor')
+    .neq('external_assignee', '');
+  const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
+  overlay.querySelector('#acc-ext-suggestions').innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
+
   overlay.querySelector('#acc-confirm').addEventListener('click', async () => {
     const date = overlay.querySelector('#acc-date').value;
     const time = overlay.querySelector('#acc-time').value || null;
@@ -302,7 +331,8 @@ async function openAcceptModal(req, team) {
         client,
         requested_by,
         location, location_type, outdoor_venue,
-        assignee_id: assigneeId,
+        assignee_id: (assigneeId === '__external' || assigneeId === '__outdoor') ? assigneeId : assigneeId,
+        external_assignee: (assigneeId === '__external' || assigneeId === '__outdoor') ? overlay.querySelector('#acc-ext-name').value.trim() : '',
         status: 'Planned',
         type_statuses,
         departments: depts,
