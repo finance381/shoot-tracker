@@ -463,7 +463,13 @@ function setupShootModal() {
     extInput.value = shoot?.external_assignee || shoot?.outdoor_name || '';
     extInput.placeholder = isExternal ? 'External photographer name' : 'Outdoor photographer name';
     assigneeSel.onchange = () => {
-      // Populate name suggestions from past shoots
+      const v = assigneeSel.value;
+      const show = v === '__external' || v === '__outdoor';
+      extGroup.classList.toggle('hidden', !show);
+      extInput.placeholder = v === '__outdoor' ? 'Outdoor photographer name' : 'External photographer name';
+    };
+
+    // Populate name suggestions from past shoots
     const { data: pastNames } = await supabase
       .from('shoots')
       .select('external_assignee, assignee_id')
@@ -472,11 +478,6 @@ function setupShootModal() {
     const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
     const datalist = document.getElementById('s-external-suggestions');
     datalist.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
-      const v = assigneeSel.value;
-      const show = v === '__external' || v === '__outdoor';
-      extGroup.classList.toggle('hidden', !show);
-      extInput.placeholder = v === '__outdoor' ? 'Outdoor photographer name' : 'External photographer name';
-    };
 
     // Type checkboxes
     const shootTypes = masters.filter(m => m.type === 'shoot_type');
