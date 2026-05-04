@@ -285,20 +285,21 @@ function navigate(page) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
-  const timeout = setTimeout(() => {
-    if (renderGeneration === gen) {
+  let done = false;
+
+  const raceTimeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 15000)
+  );
+
+  Promise.race([pages[page](), raceTimeout])
+    .then(() => { done = true; })
+    .catch(err => {
+      if (done || renderGeneration !== gen) return;
+      console.error('Page load failed:', err);
       const el = document.getElementById(`page-${page}`);
-      if (el && !el.querySelector('.stats-grid, .cal-grid, .shoots-filter-section, .requests-tabs')) {
+      if (el) {
         el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--stone)"><p>Taking too long to load</p><button class="btn-primary" onclick="location.reload()">Reload app</button></div>';
       }
-    }
-  }, 12000);
-
-  pages[page]()
-    .then(() => clearTimeout(timeout))
-    .catch(err => {
-      clearTimeout(timeout);
-      if (renderGeneration === gen) console.error('Page render error:', err);
     });
 }
 
@@ -775,9 +776,11 @@ function setupPullToRefresh() {
       indicator.classList.add('refreshing');
       indicator.querySelector('span').textContent = '';
       try {
-        await pages[currentPage]();
+        const raceTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+        await Promise.race([pages[currentPage](), raceTimeout]);
       } catch (err) {
         console.error('Refresh error:', err);
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Refresh timed out — try again' }));
       }
       setTimeout(() => {
         indicator.classList.remove('refreshing');
