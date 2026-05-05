@@ -288,7 +288,7 @@ function navigate(page) {
   let done = false;
 
   const raceTimeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), 15000)
+    setTimeout(() => reject(new Error('timeout')), 5000)
   );
 
   Promise.race([pages[page](), raceTimeout])
@@ -776,7 +776,7 @@ function setupPullToRefresh() {
       indicator.classList.add('refreshing');
       indicator.querySelector('span').textContent = '';
       try {
-        const raceTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+        const raceTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
         await Promise.race([pages[currentPage](), raceTimeout]);
       } catch (err) {
         console.error('Refresh error:', err);

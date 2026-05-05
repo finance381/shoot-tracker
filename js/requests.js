@@ -419,12 +419,14 @@ async function openAcceptModal(req, team) {
         const mergedDepts = [...new Set([...existingDepts, ...newDepts])];
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
+        const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');
 
         const { data: updated, error: upErr } = await supabase.from('shoots').update({
           type: mergedTypes,
           type_statuses: mergedTS,
           departments: mergedDepts,
-          notes: mergedNotes
+          notes: mergedNotes,
+          requested_by: mergedRequestedBy
         }).eq('id', match.id).select().single();
 
         if (upErr) throw upErr;
