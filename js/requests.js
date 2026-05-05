@@ -300,7 +300,6 @@ async function openAcceptModal(req, team) {
   }
 
   // Auto-select location — map "outdoor" to "__outdoor"
-  const locSel = overlay.querySelector('#acc-location');
   if (req.location === 'outdoor') {
     locSel.value = '__outdoor';
     locSel.dispatchEvent(new Event('change'));
