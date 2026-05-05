@@ -469,7 +469,7 @@ function setupShootModal() {
       .from('shoots')
       .select('external_assignee, assignee_id')
       .or('assignee_id.eq.__external,assignee_id.eq.__outdoor')
-      .neq('external_assignee', '');
+      .not('external_assignee', 'eq', '');
     const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
     const datalist = document.getElementById('s-external-suggestions');
     datalist.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');

@@ -286,9 +286,50 @@ async function openAcceptModal(req, team) {
     .from('shoots')
     .select('external_assignee')
     .or('assignee_id.eq.__external,assignee_id.eq.__outdoor')
-    .neq('external_assignee', '');
+    .not('external_assignee', 'eq', '');
   const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
   overlay.querySelector('#acc-ext-suggestions').innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
+  // Auto-check departments from request
+  if (req.department) {
+    req.department.split(',').forEach(d => {
+      const cb = overlay.querySelector(`#acc-dept-checks input[value="${d.trim()}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+
+  // Auto-select location from request
+  if (req.location) {
+    const locSel = overlay.querySelector('#acc-location');
+    if (locSel) locSel.value = req.location;
+  }
+
+  // Check for existing shoot on same date + location (merge candidate)
+  if (req.date && req.location) {
+    const { data: existing } = await supabase.from('shoots').select('*')
+      .eq('date', req.date)
+      .ilike('location', req.location)
+      .not('status', 'eq', 'Posted');
+
+    if (existing && existing.length > 0) {
+      const match = existing[0];
+      const assignee = team.find(t => t.id === match.assignee_id)?.name || match.external_assignee || 'Unassigned';
+      const existingTypes = match.type || '';
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
+      banner.innerHTML = `
+        <strong>🔗 Existing shoot found on this date & venue</strong><br>
+        Assigned to: <strong>${assignee}</strong><br>
+        Types: ${existingTypes}<br>
+        <span style="color:var(--stone);font-size:12px;">This request will be merged into the existing shoot on save.</span>
+      `;
+      const modalBody = overlay.querySelector('.modal-body');
+      modalBody.insertBefore(banner, modalBody.querySelector('.form-row-2'));
+
+      // Pre-select the existing assignee
+      const accAssignee = overlay.querySelector('#acc-assignee');
+      if (match.assignee_id && accAssignee) accAssignee.value = match.assignee_id;
+    }
+  }
 
   overlay.querySelector('#acc-confirm').addEventListener('click', async () => {
     const date = overlay.querySelector('#acc-date').value;
