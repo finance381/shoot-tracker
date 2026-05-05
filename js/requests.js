@@ -321,23 +321,69 @@ async function openAcceptModal(req, team) {
       const type_statuses = {};
       types.forEach(t => { type_statuses[t] = 'Planned'; });
 
-      const { data: shoot, error: shootErr } = await supabase.from('shoots').insert({
-        date, time,
-        type: typeStr,
-        client,
-        requested_by,
-        location, location_type, outdoor_venue,
-        assignee_id: assigneeId === '__external' ? null : assigneeId,
-        external_assignee: assigneeId === '__external' ? overlay.querySelector('#acc-ext-name').value.trim() : '',
-        status: 'Planned',
-        type_statuses,
-        departments: depts,
-        notes,
-        is_impromptu: false,
-        created_by: me?.id
-      }).select().single();
+      // Check for existing shoot on same date + location to merge
+      let matchQuery = supabase.from('shoots').select('*')
+        .eq('date', date);
+      
+      if (location_type === 'outdoor') {
+        matchQuery = matchQuery.eq('outdoor_venue', outdoor_venue);
+      } else {
+        matchQuery = matchQuery.eq('location', location);
+      }
 
-      if (shootErr) throw shootErr;
+      const { data: existing } = await matchQuery;
+      const match = (existing || []).find(s => s.status !== 'Posted');
+
+      let shoot;
+
+      if (match) {
+        // Merge: add new types + departments into existing shoot
+        const mergedTS = { ...match.type_statuses };
+        types.forEach(t => { if (!mergedTS[t]) mergedTS[t] = 'Planned'; });
+
+        const existingTypes = (match.type || '').split(',').map(t => t.trim()).filter(Boolean);
+        const mergedTypes = [...new Set([...existingTypes, ...types])].join(', ');
+
+        const existingDepts = Array.isArray(match.departments) ? match.departments : [];
+        const newDepts = Array.isArray(depts) ? depts : [];
+        const mergedDepts = [...new Set([...existingDepts, ...newDepts])];
+
+        const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
+
+        const { data: updated, error: upErr } = await supabase.from('shoots').update({
+          type: mergedTypes,
+          type_statuses: mergedTS,
+          departments: mergedDepts,
+          notes: mergedNotes
+        }).eq('id', match.id).select().single();
+
+        if (upErr) throw upErr;
+        shoot = updated;
+
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Merged into existing shoot on same date & venue!' }));
+      } else {
+        // No match — create new shoot
+        const { data: newShoot, error: shootErr } = await supabase.from('shoots').insert({
+          date, time,
+          type: typeStr,
+          client,
+          requested_by,
+          location, location_type, outdoor_venue,
+          assignee_id: assigneeId === '__external' ? null : assigneeId,
+          external_assignee: assigneeId === '__external' ? overlay.querySelector('#acc-ext-name').value.trim() : '',
+          status: 'Planned',
+          type_statuses,
+          departments: depts,
+          notes,
+          is_impromptu: false,
+          created_by: me?.id
+        }).select().single();
+
+        if (shootErr) throw shootErr;
+        shoot = newShoot;
+
+        window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot created from request!' }));
+      }
 
       await supabase.from('shoot_requests').update({
         status: 'accepted',
@@ -353,6 +399,7 @@ async function openAcceptModal(req, team) {
       }
 
       close();
+      render();
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot created from request!' }));
       render();
     } catch (err) {
