@@ -310,30 +310,53 @@ async function openAcceptModal(req, team) {
   }
 
   // Check for existing shoot on same date + location (merge candidate)
-  if (req.date && req.location) {
+  const mergeDate = overlay.querySelector('#acc-date').value;
+  const mergeLoc = locSel.value;
+  if (mergeDate && mergeLoc && mergeLoc !== '__outdoor') {
     const { data: existing } = await supabase.from('shoots').select('*')
-      .eq('date', req.date)
-      .ilike('location', req.location)
+      .eq('date', mergeDate)
+      .ilike('location', mergeLoc)
       .not('status', 'eq', 'Posted');
 
     if (existing && existing.length > 0) {
       const match = existing[0];
       const assignee = team.find(t => t.id === match.assignee_id)?.name || match.external_assignee || 'Unassigned';
-      const existingTypes = match.type || '';
       const banner = document.createElement('div');
       banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
       banner.innerHTML = `
         <strong>🔗 Existing shoot found on this date & venue</strong><br>
-        Assigned to: <strong>${assignee}</strong><br>
-        Types: ${existingTypes}<br>
-        <span style="color:var(--stone);font-size:12px;">This request will be merged into the existing shoot on save.</span>
+        Assigned to: <strong>${assignee}</strong> · Types: ${match.type || 'none'}<br>
+        <span style="color:var(--stone);font-size:12px;">This request will merge into the existing shoot on save.</span>
       `;
-      const modalBody = overlay.querySelector('.modal-body');
-      modalBody.insertBefore(banner, modalBody.querySelector('.form-row-2'));
+      overlay.querySelector('.modal-body').insertBefore(banner, overlay.querySelector('.form-row-2'));
 
       // Pre-select the existing assignee
       const accAssignee = overlay.querySelector('#acc-assignee');
       if (match.assignee_id && accAssignee) accAssignee.value = match.assignee_id;
+    }
+  } else if (mergeDate && mergeLoc === '__outdoor') {
+    const outdoorVal = overlay.querySelector('#acc-outdoor').value.trim();
+    if (outdoorVal) {
+      const { data: existing } = await supabase.from('shoots').select('*')
+        .eq('date', mergeDate)
+        .ilike('outdoor_venue', outdoorVal)
+        .not('status', 'eq', 'Posted');
+
+      if (existing && existing.length > 0) {
+        const match = existing[0];
+        const assignee = team.find(t => t.id === match.assignee_id)?.name || match.external_assignee || 'Unassigned';
+        const banner = document.createElement('div');
+        banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
+        banner.innerHTML = `
+          <strong>🔗 Existing shoot found on this date & venue</strong><br>
+          Assigned to: <strong>${assignee}</strong> · Types: ${match.type || 'none'}<br>
+          <span style="color:var(--stone);font-size:12px;">This request will merge into the existing shoot on save.</span>
+        `;
+        overlay.querySelector('.modal-body').insertBefore(banner, overlay.querySelector('.form-row-2'));
+
+        const accAssignee = overlay.querySelector('#acc-assignee');
+        if (match.assignee_id && accAssignee) accAssignee.value = match.assignee_id;
+      }
     }
   }
 
