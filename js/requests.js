@@ -420,13 +420,15 @@ async function openAcceptModal(req, team) {
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
         const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');
+        const mergedTime = match.time && time ? (match.time < time ? match.time : time) : match.time || time;
 
         const { data: updated, error: upErr } = await supabase.from('shoots').update({
           type: mergedTypes,
           type_statuses: mergedTS,
           departments: mergedDepts,
           notes: mergedNotes,
-          requested_by: mergedRequestedBy
+          requested_by: mergedRequestedBy,
+          time: mergedTime
         }).eq('id', match.id).select().single();
 
         if (upErr) throw upErr;
