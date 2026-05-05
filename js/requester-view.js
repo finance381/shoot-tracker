@@ -424,7 +424,8 @@ async function renderNewRequest(el, r) {
         time,
         function_name: func,
         location,
-        notes
+        notes,
+        department: r.type !== 'venue' ? r.display_name : ''
       });
 
       if (error) throw error;

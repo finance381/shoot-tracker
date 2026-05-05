@@ -289,18 +289,25 @@ async function openAcceptModal(req, team) {
     .not('external_assignee', 'eq', '');
   const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
   overlay.querySelector('#acc-ext-suggestions').innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
-  // Auto-check departments from request
-  if (req.department) {
-    req.department.split(',').forEach(d => {
+  // Auto-check department — parse from requested_by "(Entertainment)" or from req.department
+  const deptMatch = req.requested_by?.match(/\(([^)]+)\)$/);
+  const reqDept = req.department || (deptMatch ? deptMatch[1] : '');
+  if (reqDept) {
+    reqDept.split(',').forEach(d => {
       const cb = overlay.querySelector(`#acc-dept-checks input[value="${d.trim()}"]`);
       if (cb) cb.checked = true;
     });
   }
 
-  // Auto-select location from request
-  if (req.location) {
-    const locSel = overlay.querySelector('#acc-location');
-    if (locSel) locSel.value = req.location;
+  // Auto-select location — map "outdoor" to "__outdoor"
+  const locSel = overlay.querySelector('#acc-location');
+  if (req.location === 'outdoor') {
+    locSel.value = '__outdoor';
+    locSel.dispatchEvent(new Event('change'));
+    // Try to pre-fill outdoor venue from notes
+    if (req.notes) overlay.querySelector('#acc-outdoor').value = req.notes;
+  } else if (req.location) {
+    locSel.value = req.location;
   }
 
   // Check for existing shoot on same date + location (merge candidate)
