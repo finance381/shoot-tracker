@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { withTimeout } from './app.js';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -175,11 +176,11 @@ function openDaySheet(date, shoots, team) {
 
   overlay.querySelectorAll('.day-shoot-card').forEach(card => {
     card.addEventListener('click', async () => {
-      const { data: shoot } = await supabase
+      const { data: shoot } = await withTimeout(supabase
         .from('shoots')
         .select('*')
         .eq('id', card.dataset.sid)
-        .maybeSingle();
+        .maybeSingle());
       if (shoot) {
         close();
         window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));

@@ -9,6 +9,16 @@ import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
 import { getRequester, loginRequester, logoutRequester, renderRequesterApp } from './requester-view.js';
 
+// Timeout wrapper for any async operation
+function withTimeout(promise, ms = 8000) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('Request timed out')), ms))
+  ]);
+}
+
+export { withTimeout };
+
 window.addEventListener('error', (e) => {
   alert('ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
 });
@@ -468,8 +478,7 @@ function setupShootModal() {
     const { data: pastNames } = await supabase
       .from('shoots')
       .select('external_assignee, assignee_id')
-      .or('assignee_id.eq.__external,assignee_id.eq.__outdoor')
-      .not('external_assignee', 'eq', '');
+      .or('assignee_id.eq.__external,assignee_id.eq.__outdoor');
     const uniqueNames = [...new Set((pastNames || []).map(s => s.external_assignee).filter(Boolean))].sort();
     const datalist = document.getElementById('s-external-suggestions');
     datalist.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');

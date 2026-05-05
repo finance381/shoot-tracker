@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
+import { withTimeout } from './app.js';
 
 async function logStatusChange(shootId, typeName, fromStatus, toStatus) {
   const me = getMember();
@@ -241,11 +242,11 @@ function renderDateGrouped(el, filtered, allShoots, me) {
       card.dataset.loading = 'true';
       card.style.opacity = '0.6';
       try {
-        const { data: shoot } = await supabase
+        const { data: shoot } = await withTimeout(supabase
           .from('shoots')
           .select('*')
           .eq('id', card.dataset.id)
-          .maybeSingle();
+          .maybeSingle());
         if (shoot) window.dispatchEvent(new CustomEvent('open-shoot', { detail: shoot }));
       } catch (err) {
         console.error('Failed to load shoot:', err);
