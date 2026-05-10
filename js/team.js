@@ -198,6 +198,14 @@ function openTeamModal(member = null) {
           <label>Email (optional)</label>
           <input type="email" id="tm-email" value="${member?.email || ''}" placeholder="their@email.com">
         </div>
+        ${isEdit && member.auth_id ? `
+          <div class="form-group" style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
+            <label>Reset Password</label>
+            <div id="tm-reset-section">
+              <button class="btn-secondary" id="tm-reset-toggle" style="width:100%">Reset Password…</button>
+            </div>
+          </div>
+        ` : ''}
         <div id="tm-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
@@ -268,6 +276,49 @@ function openTeamModal(member = null) {
       close();
       render();
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Member removed' }));
+    });
+  }
+
+  if (isEdit && member.auth_id) {
+    overlay.querySelector('#tm-reset-toggle')?.addEventListener('click', () => {
+      const section = overlay.querySelector('#tm-reset-section');
+      section.innerHTML = `
+        <input type="password" id="tm-new-pw" placeholder="New password (min 6 chars)" style="margin-bottom:8px">
+        <button class="btn-primary btn-full" id="tm-reset-confirm">Set New Password</button>
+      `;
+      section.querySelector('#tm-reset-confirm').addEventListener('click', async () => {
+        const pw = section.querySelector('#tm-new-pw').value;
+        if (!pw || pw.length < 6) {
+          const errEl = overlay.querySelector('#tm-error');
+          errEl.textContent = 'Password must be at least 6 characters';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        const btn = section.querySelector('#tm-reset-confirm');
+        btn.disabled = true;
+        btn.textContent = 'Resetting…';
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const resp = await fetch('https://qzttaeeywdepjytyagro.supabase.co/functions/v1/reset-password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ member_id: member.id, new_password: pw })
+          });
+          const result = await resp.json();
+          if (result.error) throw new Error(result.error);
+          section.innerHTML = '<div style="color:var(--success);font-size:13px">✓ Password reset successfully</div>';
+          window.dispatchEvent(new CustomEvent('toast', { detail: `Password reset for ${member.name}` }));
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Set New Password';
+          const errEl = overlay.querySelector('#tm-error');
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+        }
+      });
     });
   }
 }
