@@ -27,6 +27,13 @@ export async function render() {
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
   const pending  = shoots.filter(s => s.status !== 'Posted');
   const posted   = shoots.filter(s => s.status === 'Posted');
+  const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };
+  shoots.forEach(s => {
+    const ts = s.type_statuses || {};
+    Object.entries(ts).forEach(([t, st]) => {
+      if (st === 'Posted' && t in postedByType) postedByType[t]++;
+    });
+  });
   const upcoming = shoots
     .filter(s => s.date >= today && s.status !== 'Posted')
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
@@ -67,10 +74,9 @@ export async function render() {
         <div class="stat-value">${pending.length}</div>
         <div class="stat-label">Pending post</div>
       </div>
-      <div class="stat-card stat-clickable" data-action="posted">
-        <div class="stat-value">${posted.length}</div>
-        <div class="stat-label">Posted total</div>
-      </div>
+      <div class="stat-card"><div class="stat-value">${postedByType['Photo']}</div><div class="stat-label">Photos posted</div></div>
+      <div class="stat-card"><div class="stat-value">${postedByType['Reel']}</div><div class="stat-label">Reels posted</div></div>
+      <div class="stat-card"><div class="stat-value">${postedByType['Sales Video']}</div><div class="stat-label">Videos posted</div></div>
       <div class="stat-card stat-clickable" data-action="all">
         <div class="stat-value">${shoots.length}</div>
         <div class="stat-label">All shoots</div>
@@ -102,8 +108,6 @@ export async function render() {
         filters = { dateFrom: today, dateTo: weekEnd };
       } else if (action === 'pending') {
         filters = { status: '__not_posted' };
-      } else if (action === 'posted') {
-        filters = { status: 'Posted' };
       }
       // 'all' = no filters
 
