@@ -55,6 +55,14 @@ export async function render() {
         });
       });
 
+      el.querySelectorAll('.team-card').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+          const member = team.find(m => m.id === card.dataset.id);
+          if (member) openTeamModal(member);
+        });
+      });
+
       setupMastersHandlers(el);
     }
   } catch (err) {

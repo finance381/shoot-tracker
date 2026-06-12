@@ -156,7 +156,7 @@ async function renderMyRequests(el, r) {
 
   el.innerHTML = `
     <div class="req-search-wrap">
-      <input type="text" id="rq-name-filter" class="req-search-input" placeholder="Filter by name…">
+      <input type="text" id="rq-name-filter" class="req-search-input" placeholder="Search name, function, notes…">
     </div>
     <div id="rq-list"></div>
   `;
@@ -165,13 +165,26 @@ async function renderMyRequests(el, r) {
 
   function renderList(filter) {
     const filtered = filter
-      ? allRequests.filter(req => (req.requested_by || '').toLowerCase().includes(filter.toLowerCase()))
+      ? allRequests.filter(req => {
+          const q = filter.toLowerCase();
+          return (req.requested_by || '').toLowerCase().includes(q)
+            || (req.function_name || '').toLowerCase().includes(q)
+            || (req.notes || '').toLowerCase().includes(q);
+        })
       : allRequests;
     renderRequestCards(listEl, filtered, r);
   }
 
   el.querySelector('#rq-name-filter').addEventListener('input', (e) => {
     renderList(e.target.value.trim());
+  });
+
+  el.querySelector('#rq-list').addEventListener('click', (e) => {
+    const card = e.target.closest('.req-list-card');
+    if (!card || e.target.closest('.req-edit-btn') || e.target.closest('.req-delete-btn')) return;
+    const rid = card.querySelector('[data-rid]')?.dataset.rid;
+    const req = allRequests.find(r => r.id === rid);
+    if (req) openRequesterDetail(req);
   });
 
   renderList('');
@@ -195,7 +208,7 @@ function renderRequestCards(el, requests, r) {
     const badgeClass = `req-badge-${req.status}`;
 
     return `
-      <div class="req-list-card req-list-${req.status}">
+      <div class="req-list-card req-list-${req.status}" data-rid="${req.id}" style="cursor:pointer">
         <div class="req-list-top">
           <div>
             <div class="req-list-func">${req.function_name || 'No function'}</div>
@@ -480,6 +493,47 @@ async function subscribePush(r) {
   } catch (err) {
     console.warn('Requester push failed:', err);
   }
+}
+
+function openRequesterDetail(req) {
+  document.getElementById('req-detail-view')?.remove();
+
+  const dateStr = new Date(req.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeStr = req.time ? fmtTime(req.time) : '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'req-detail-view';
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="border-radius:20px 20px 0 0;">
+      <div class="modal-header">
+        <h2>Request Details</h2>
+        <button class="btn-icon" id="rdv-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="req-detail-row"><strong>Requested By</strong><span>${req.requested_by || ''}</span></div>
+        <div class="req-detail-row"><strong>Date</strong><span>${dateStr}</span></div>
+        ${timeStr ? `<div class="req-detail-row"><strong>Time</strong><span>${timeStr}</span></div>` : ''}
+        ${req.function_name ? `<div class="req-detail-row"><strong>Function</strong><span>${req.function_name}</span></div>` : ''}
+        ${req.location ? `<div class="req-detail-row"><strong>Location</strong><span>${req.location}</span></div>` : ''}
+        ${req.notes ? `<div class="req-detail-row"><strong>Notes</strong><span>${req.notes}</span></div>` : ''}
+        <div class="req-detail-row"><strong>Status</strong><span class="req-status-badge req-status-${req.status}">${req.status.charAt(0).toUpperCase() + req.status.slice(1)}</span></div>
+        ${req.status === 'rejected' && req.reject_reason ? `<div class="req-detail-row"><strong>Reject Reason</strong><span>${req.reject_reason}</span></div>` : ''}
+        ${req.status === 'accepted' && req.assignee_name ? `<div class="req-detail-row"><strong>Assigned To</strong><span>${req.assignee_name}</span></div>` : ''}
+        <div class="req-detail-row" style="color:var(--stone);font-size:12px;">Submitted ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+      </div>
+      <div class="modal-footer">
+        <span class="spacer"></span>
+        <button class="btn-secondary" id="rdv-done">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('#rdv-close').addEventListener('click', close);
+  overlay.querySelector('#rdv-done').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 }
 
 function showToast(msg) {
