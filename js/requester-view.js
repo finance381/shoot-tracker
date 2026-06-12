@@ -42,8 +42,8 @@ export async function renderRequesterApp(container) {
   container.innerHTML = `
     <header class="req-app-header">
       <div>
-        <h1 class="req-app-title">📸 ${r.display_name}</h1>
-        <p class="req-app-sub">Shoot Requests</p>
+        <h1 class="req-app-title">📸 Shoot Tracker</h1>
+        <p class="req-app-sub">${r.display_name} · Shoot Requests</p>
       </div>
       <button id="req-logout" class="btn-icon" title="Log out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -412,6 +412,7 @@ async function renderNewRequest(el, r) {
     if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
     if (!date) { errEl.textContent = 'Please select a date'; errEl.style.display = 'block'; return; }
     if (!func) { errEl.textContent = 'Please describe the function / purpose'; errEl.style.display = 'block'; return; }
+    if (!location) { errEl.textContent = 'Please select a location'; errEl.style.display = 'block'; return; }
 
     btn.disabled = true;
     btn.textContent = 'Submitting…';

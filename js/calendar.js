@@ -78,6 +78,10 @@ export async function render() {
       const date = cell.dataset.date;
       const dayS = all.filter(s => s.date === date);
       if (dayS.length === 0) {
+        if (date < today) {
+          window.dispatchEvent(new CustomEvent('toast', { detail: 'This date has already passed' }));
+          return;
+        }
         window.dispatchEvent(new CustomEvent('new-shoot', { detail: { date } }));
       } else {
         openDaySheet(date, dayS, team);

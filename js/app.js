@@ -168,6 +168,11 @@ function showAuth() {
       errorEl.classList.remove('hidden');
       return;
     }
+    if (!/^\d{10}$/.test(phone)) {
+      errorEl.textContent = 'Enter a valid 10-digit phone number';
+      errorEl.classList.remove('hidden');
+      return;
+    }
 
     newBtn.disabled = true;
     newBtn.textContent = 'Please wait…';
@@ -192,6 +197,18 @@ function showAuth() {
     }
   });
   // Requester toggle
+  const passToggle = document.getElementById('auth-pass-toggle');
+  if (passToggle) {
+    passToggle.addEventListener('click', () => {
+      const inp = document.getElementById('auth-pass');
+      const isHidden = inp.type === 'password';
+      inp.type = isHidden ? 'text' : 'password';
+      passToggle.innerHTML = isHidden
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    });
+  }
+
   const reqToggle = document.getElementById('auth-requester-toggle');
   if (reqToggle) {
     const newToggle = reqToggle.cloneNode(true);
@@ -224,6 +241,11 @@ function showAuth() {
 
       if (!username || !password) {
         errEl.textContent = 'Enter username and password';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (/[^a-zA-Z0-9_]/.test(username)) {
+        errEl.textContent = 'Username can only contain letters, numbers, and underscores';
         errEl.classList.remove('hidden');
         return;
       }
@@ -280,6 +302,7 @@ function showApp() {
     setupPullToRefresh();
     subscribePush();
     setupDashboardNav();
+    document.getElementById('title-home').addEventListener('click', () => navigate('dashboard'));
   }
 
   navigate('dashboard');
@@ -600,11 +623,12 @@ function setupShootModal() {
     const assignee_id = assigneeVal === '__external' ? null : (assigneeVal || null);
     const external_assignee = assigneeVal === '__external' ? document.getElementById('s-external').value.trim() : '';
 
-    if (!date) return;
+    if (!date) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    if (!client) { alert('Please enter a function name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const typeChecks = document.querySelectorAll('#s-type-checks input:checked');
     const type = Array.from(typeChecks).map(c => c.value).join(',');
-    if (!type) { alert('Select at least one type'); return; }
+    if (!type) { alert('Select at least one type'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);

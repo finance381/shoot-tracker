@@ -124,7 +124,7 @@ function renderRequestCard(r, team) {
         ${r.status === 'pending' ? `
           <div class="req-card-actions">
             <button class="req-accept-btn" data-rid="${r.id}">✓ Accept</button>
-            <button class="req-reject-btn" data-rid="${r.id}">✗</button>
+            <button class="req-reject-btn" data-rid="${r.id}">✗ Reject</button>
           </div>
         ` : ''}
       </div>
