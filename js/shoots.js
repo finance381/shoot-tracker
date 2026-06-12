@@ -28,6 +28,24 @@ let teamCache = [];
 let venueCache = [];
 let renderGen = 0;
 
+function saveFilters() {
+  try { sessionStorage.setItem('st_filters', JSON.stringify({ filterMember, filterStatus, filterVenue, filterDateFrom, filterDateTo, filterSearch, filterDateDir })); } catch {}
+}
+function restoreFilters() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('st_filters'));
+    if (!saved) return;
+    filterMember = saved.filterMember || 'All';
+    filterStatus = saved.filterStatus || 'All';
+    filterVenue = saved.filterVenue || 'All';
+    filterDateFrom = saved.filterDateFrom || '';
+    filterDateTo = saved.filterDateTo || '';
+    filterSearch = saved.filterSearch || '';
+    filterDateDir = saved.filterDateDir || 'all';
+  } catch {}
+}
+restoreFilters();
+
 const container = () => document.getElementById('page-shoots');
 
 // Allow external filter setting (from dashboard clicks)
@@ -38,6 +56,7 @@ export function setFilters(filters = {}) {
   if (filters.dateFrom !== undefined) filterDateFrom = filters.dateFrom;
   if (filters.dateTo !== undefined) filterDateTo = filters.dateTo;
   if (filters.search !== undefined) filterSearch = filters.search;
+  saveFilters();
 }
 
 export function resetFilters() {
@@ -48,9 +67,11 @@ export function resetFilters() {
   filterDateTo = '';
   filterSearch = '';
   filterDateDir = 'all';
+  saveFilters();
 }
 
 export async function render() {
+  saveFilters();
   const myGen = ++renderGen;
   const el = container();
   if (!el.querySelector('.shoots-filter-section')) {

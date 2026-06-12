@@ -26,15 +26,24 @@ window.addEventListener('unhandledrejection', (e) => {
   alert('PROMISE: ' + (e.reason?.message || e.reason));
 });
 // Proactive session refresh after idle/tab switch
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState !== 'visible') return;
+async function refreshAuth() {
   try {
-    const { error } = await supabase.auth.getSession();
-    if (error) location.reload();
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      const { data: fallback } = await supabase.auth.getSession();
+      if (!fallback.session) location.reload();
+    }
   } catch {
     location.reload();
   }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshAuth();
 });
+// Keep session alive every 4 minutes while visible
+setInterval(() => {
+  if (document.visibilityState === 'visible') refreshAuth();
+}, 4 * 60000);
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
 const pages = {
@@ -305,12 +314,14 @@ function showApp() {
     document.getElementById('title-home').addEventListener('click', () => navigate('dashboard'));
   }
 
-  navigate('dashboard');
+  const savedPage = sessionStorage.getItem('st_page');
+  navigate(savedPage && pages[savedPage] ? savedPage : 'dashboard');
 }
 
 // ===== NAVIGATION =====
 function navigate(page) {
   currentPage = page;
+  try { sessionStorage.setItem('st_page', page); } catch {}
   renderGeneration++;
   const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
