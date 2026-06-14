@@ -55,16 +55,16 @@ export async function render() {
         });
       });
 
-      el.querySelectorAll('.team-card').forEach(card => {
-        card.style.cursor = 'pointer';
-        card.addEventListener('click', () => {
-          const member = team.find(m => m.id === card.dataset.id);
-          if (member) openTeamModal(member);
-        });
-      });
-
       setupMastersHandlers(el);
     }
+
+    el.querySelectorAll('.team-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const member = team.find(m => m.id === card.dataset.id);
+        if (member) openTeamModal(member);
+      });
+    });
   } catch (err) {
     console.error('Team render error:', err);
     el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>Error loading team: ${err.message}</div>`;

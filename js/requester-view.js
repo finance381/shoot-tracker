@@ -42,8 +42,8 @@ export async function renderRequesterApp(container) {
   container.innerHTML = `
     <header class="req-app-header">
       <div>
-        <h1 class="req-app-title">📸 Shoot Tracker</h1>
-        <p class="req-app-sub">${r.display_name} · Shoot Requests</p>
+        <h1 class="req-app-title">📸 Shoot Requests</h1>
+        <p class="req-app-sub">${r.display_name}</p>
       </div>
       <button id="req-logout" class="btn-icon" title="Log out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -182,7 +182,7 @@ async function renderMyRequests(el, r) {
   el.querySelector('#rq-list').addEventListener('click', (e) => {
     const card = e.target.closest('.req-list-card');
     if (!card || e.target.closest('.req-edit-btn') || e.target.closest('.req-delete-btn')) return;
-    const rid = card.querySelector('[data-rid]')?.dataset.rid;
+    const rid = card.dataset.rid;
     const req = allRequests.find(r => r.id === rid);
     if (req) openRequesterDetail(req);
   });

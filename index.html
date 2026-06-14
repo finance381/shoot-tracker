@@ -19,7 +19,7 @@
   <!-- ===== AUTH SCREEN ===== -->
   <div id="auth-screen" class="hidden">
     <div class="auth-card">
-      <div class="auth-logo">📋📸</div>
+      <div class="auth-logo"><span style="font-size:48px">📸</span><span style="font-size:24px;vertical-align:super">📋</span></div>
       <h1 class="auth-title">Shoot Tracker</h1>
       <p class="auth-sub">Schedule, track & manage shoots</p>
 
@@ -85,7 +85,7 @@
       <div class="top-actions">
         <a href="/" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);color:var(--stone);font-size:12px;font-weight:600;text-decoration:none">⌂ Hub</a>
         <button id="btn-change-pw" class="btn-icon" title="Change password">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><line x1="12" y1="13" x2="12" y2="22"/><line x1="9" y1="17" x2="12" y2="17"/><line x1="9" y1="20" x2="12" y2="20"/></svg>
         </button>
         <button id="btn-logout" class="btn-icon" title="Log out">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -179,15 +179,15 @@
           <input type="text" id="s-client" placeholder="e.g. Product launch, Wedding">
         </div>
         <div class="form-group">
-          <label>Requested By (Sales Person)</label>
+          <label>Requested By (Sales Person) *</label>
           <input type="text" id="s-requested-by" placeholder="e.g. Sahaj, Krati">
         </div>
         <div class="form-group">
-          <label>For Department</label>
+          <label>For Department *</label>
           <div id="s-dept-checks" class="checkbox-group"></div>
         </div>
         <div class="form-group">
-          <label>Location</label>
+          <label>Location *</label>
           <select id="s-location"></select>
         </div>
         <div class="form-group hidden" id="s-outdoor-group">

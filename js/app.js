@@ -167,6 +167,10 @@ function showAuth() {
     });
   }
 
+  document.getElementById('auth-phone').addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+  });
+
   newBtn.addEventListener('click', async () => {
     const phone = document.getElementById('auth-phone').value.trim();
     const pass  = document.getElementById('auth-pass').value;
@@ -237,6 +241,10 @@ function showAuth() {
       document.getElementById('auth-screen').classList.remove('hidden');
     });
   }
+
+  document.getElementById('req-username')?.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+  });
 
   const reqLoginBtn = document.getElementById('req-login-btn');
   if (reqLoginBtn) {
@@ -377,6 +385,7 @@ function setupFab() {
 function setupLogout() {
   document.getElementById('btn-logout').addEventListener('click', async () => {
     await logout();
+    try { sessionStorage.removeItem('st_page'); sessionStorage.removeItem('st_filters'); } catch {}
     location.reload();
   });
 }
@@ -640,15 +649,18 @@ function setupShootModal() {
     const typeChecks = document.querySelectorAll('#s-type-checks input:checked');
     const type = Array.from(typeChecks).map(c => c.value).join(',');
     if (!type) { alert('Select at least one type'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    if (!requested_by) { alert('Please enter Requested By (Sales Person)'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);
+    if (departments.length === 0) { alert('Please select at least one department'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const locationSel = document.getElementById('s-location');
     const locVal = locationSel.value;
     const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
     const location = location_type === 'outdoor' ? '' : locVal;
     const outdoor_venue = location_type === 'outdoor' ? document.getElementById('s-outdoor').value.trim() : '';
+    if (location_type === 'outdoor' && !outdoor_venue) { alert('Please enter the outdoor venue name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const is_impromptu = document.getElementById('s-impromptu').classList.contains('active');
 
