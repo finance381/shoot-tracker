@@ -42,7 +42,7 @@ export async function renderRequesterApp(container) {
   container.innerHTML = `
     <header class="req-app-header">
       <div>
-        <h1 class="req-app-title">📸 Shoot Requests</h1>
+        <h1 class="req-app-title"><span style="font-size:24px">📸</span><span style="font-size:14px;vertical-align:sub">📋</span> Shoot Requests</h1>
         <p class="req-app-sub">${r.display_name}</p>
       </div>
       <button id="req-logout" class="btn-icon" title="Log out">

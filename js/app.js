@@ -504,6 +504,7 @@ function setupShootModal() {
     const assigneeSel = document.getElementById('s-assignee');
     const isExternal = shoot?.assignee_id === '__external' || (!shoot?.assignee_id && shoot?.external_assignee);
     assigneeSel.innerHTML =
+      (!isEdit ? '<option value="">Select assignee…</option>' : '') +
       team.map(m =>
         `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
       ).join('') +
@@ -552,6 +553,7 @@ function setupShootModal() {
     const currentLoc = shoot?.location || '';
     const locType = shoot?.location_type || 'indoor';
     locationSel.innerHTML =
+      (!isEdit ? '<option value="">Select location…</option>' : '') +
       locations.map(l =>
         `<option value="${l.label}" ${locType === 'indoor' && currentLoc === l.label ? 'selected' : ''}>${l.label}</option>`
       ).join('') +
@@ -650,6 +652,7 @@ function setupShootModal() {
     const type = Array.from(typeChecks).map(c => c.value).join(',');
     if (!type) { alert('Select at least one type'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!requested_by) { alert('Please enter Requested By (Sales Person)'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    if (!assigneeVal) { alert('Please select an assignee'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);
@@ -657,6 +660,7 @@ function setupShootModal() {
 
     const locationSel = document.getElementById('s-location');
     const locVal = locationSel.value;
+    if (!locVal) { alert('Please select a location'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
     const location = location_type === 'outdoor' ? '' : locVal;
     const outdoor_venue = location_type === 'outdoor' ? document.getElementById('s-outdoor').value.trim() : '';
