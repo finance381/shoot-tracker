@@ -37,7 +37,7 @@ export async function render() {
             ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
             <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
           </div>
-          ${showAdmin && !m.is_admin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
+          ${showAdmin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
         </div>
       `).join('')}
       ${team.length === 0 ? '<div class="empty-state"><div class="emoji">👥</div>No team members yet</div>' : ''}
@@ -195,8 +195,14 @@ function openTeamModal(member = null) {
           <input type="text" id="tm-name" value="${member?.name || ''}" placeholder="Full name">
         </div>
         <div class="form-group">
-          <label>Role</label>
-          <input type="text" id="tm-role" value="${member?.role || ''}" placeholder="e.g. Photographer, Editor">
+          <label>Role *</label>
+          <select id="tm-role">
+            <option value="">Select role…</option>
+            <option value="Photographer" ${member?.role === 'Photographer' ? 'selected' : ''}>Photographer</option>
+            <option value="Editor" ${member?.role === 'Editor' ? 'selected' : ''}>Editor</option>
+            <option value="Videographer" ${member?.role === 'Videographer' ? 'selected' : ''}>Videographer</option>
+            <option value="Admin" ${member?.role === 'Admin' ? 'selected' : ''}>Admin</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Phone (login number) *</label>
@@ -238,8 +244,8 @@ function openTeamModal(member = null) {
     const phone = overlay.querySelector('#tm-phone').value.trim();
     const errEl = overlay.querySelector('#tm-error');
 
-    if (!name || !phone) {
-      errEl.textContent = 'Name and phone number are required';
+    if (!name || !phone || !role) {
+      errEl.textContent = 'Name, role and phone number are required';
       errEl.classList.remove('hidden');
       return;
     }
@@ -250,7 +256,7 @@ function openTeamModal(member = null) {
 
     try {
       if (isEdit) {
-        const { error } = await supabase.from('team_members').update({ name, role, phone }).eq('id', member.id);
+        const { error } = await supabase.from('team_members').update({ name, role, phone, is_admin: role === 'Admin' }).eq('id', member.id);
         if (error) throw error;
         close();
         render();
@@ -260,7 +266,7 @@ function openTeamModal(member = null) {
         const fakeEmail = phoneToEmail(phone);
 
         const { error: insertErr } = await supabase.from('team_members').insert({
-          name, role, email: fakeEmail, phone, is_admin: false
+          name, role, email: fakeEmail, phone, is_admin: role === 'Admin'
         });
         if (insertErr) throw insertErr;
 
