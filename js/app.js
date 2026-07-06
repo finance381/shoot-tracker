@@ -669,9 +669,11 @@ function setupShootModal() {
     const is_impromptu = document.getElementById('s-impromptu').classList.contains('active');
 
     let status = 'Planned';
+    let userChangedStatus = false;
     if (editingShoot) {
       const activeStatus = statusBar.querySelector('button[class^="active-"]');
       status = activeStatus?.dataset.status || editingShoot.status;
+      userChangedStatus = status !== editingShoot.status;
     }
 
     const STATUS_ORDER = ['Planned', 'Shot', 'Editing', 'Posted'];
@@ -679,7 +681,13 @@ function setupShootModal() {
     let type_statuses = {};
     if (editingShoot && editingShoot.type_statuses) {
       types.forEach(t => {
-        type_statuses[t] = editingShoot.type_statuses[t] || status;
+        if (userChangedStatus) {
+          // User explicitly changed the status bar → bulk apply to all types
+          type_statuses[t] = status;
+        } else {
+          // Status bar untouched → preserve existing per-type statuses; new types default to overall
+          type_statuses[t] = editingShoot.type_statuses[t] || status;
+        }
       });
     } else {
       types.forEach(t => { type_statuses[t] = status; });
