@@ -25,7 +25,12 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  const pending  = shoots.filter(s => s.status !== 'Posted');
+  const pendingShoots = shoots.filter(s => s.status !== 'Posted');
+  let pendingItems = 0;
+  shoots.forEach(s => {
+    const ts = s.type_statuses || {};
+    Object.values(ts).forEach(st => { if (st !== 'Posted') pendingItems++; });
+  });
   const posted   = shoots.filter(s => s.status === 'Posted');
   const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };
   shoots.forEach(s => {
@@ -71,7 +76,7 @@ export async function render() {
         <div class="stat-label">This week</div>
       </div>
       <div class="stat-card stat-clickable" data-action="pending">
-        <div class="stat-value">${pending.length}</div>
+        <div class="stat-value">${pendingItems}</div>
         <div class="stat-label">Pending post</div>
       </div>
       <div class="stat-card"><div class="stat-value">${postedByType['Photo']}</div><div class="stat-label">Photos posted</div></div>
