@@ -258,7 +258,7 @@ function renderDateGrouped(el, filtered, allShoots, me) {
 
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async (e) => {
-      if (e.target.closest('.type-advance-btn') || e.target.closest('.type-revert-btn')) return;
+      if (e.target.closest('.type-row-top')) return;
       if (card.dataset.loading) return;
       card.dataset.loading = 'true';
       card.style.opacity = '0.6';
@@ -282,7 +282,9 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   // Type revert buttons
   el.querySelectorAll('.type-revert-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       const shootId = btn.dataset.sid;
       const typeName = btn.dataset.type;
       const newStatus = btn.dataset.to;
@@ -313,7 +315,9 @@ function renderDateGrouped(el, filtered, allShoots, me) {
 
   el.querySelectorAll('.type-advance-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       const shootId = btn.dataset.sid;
       const typeName = btn.dataset.type;
       const newStatus = btn.dataset.to;
