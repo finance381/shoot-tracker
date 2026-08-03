@@ -79,7 +79,7 @@ export async function render() {
   }
 
   const [shootsRes, teamRes, mastersRes] = await Promise.all([
-    supabase.from('shoots').select('*').order('date', { ascending: true }),
+    supabase.from('shoots').select('*').order('date', { ascending: true }).order('time', { ascending: true, nullsFirst: false }).order('id', { ascending: true }),
     supabase.from('team_members').select('id, name'),
     supabase.from('masters').select('*').eq('type', 'location').order('sort_order')
   ]);
@@ -219,6 +219,14 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   filtered.forEach(s => {
     if (!grouped[s.date]) grouped[s.date] = [];
     grouped[s.date].push(s);
+  });
+  Object.keys(grouped).forEach(d => {
+    grouped[d].sort((a, b) => {
+      const ta = a.time || '99:99';
+      const tb = b.time || '99:99';
+      if (ta !== tb) return ta.localeCompare(tb);
+      return (a.id || '').localeCompare(b.id || '');
+    });
   });
   const sortedDates = Object.keys(grouped).sort();
   const today = new Date().toISOString().slice(0, 10);
