@@ -305,7 +305,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .status-Planned  { background: var(--blue-bg); color: var(--blue); }
 .status-Shot     { background: var(--amber-bg); color: var(--amber); }
-.status-Editing   { background: var(--plum-bg); color: var(--plum); }
+.status-edited   { background: var(--plum-bg); color: var(--plum); }
 .status-Posted   { background: var(--sage-bg); color: var(--sage); }
 
 /* ========== STATUS BAR (modal) ========== */
@@ -323,7 +323,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .status-bar button.active-Planned  { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue); }
 .status-bar button.active-Shot     { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); }
-.status-bar button.active-Editing   { background: var(--plum-bg);  color: var(--plum);  border-color: var(--plum); }
+.status-bar button.active-edited   { background: var(--plum-bg);  color: var(--plum);  border-color: var(--plum); }
 .status-bar button.active-Posted   { background: var(--sage-bg);  color: var(--sage);  border-color: var(--sage); }
 
 /* ========== SHOOT CARD ========== */
@@ -343,7 +343,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .shoot-card:active { transform: scale(.98); }
 .shoot-card.border-Planned { border-left-color: var(--blue); }
 .shoot-card.border-Shot    { border-left-color: var(--amber); }
-.shoot-card.border-Editing  { border-left-color: var(--plum); }
+.shoot-card.border-edited  { border-left-color: var(--plum); }
 .shoot-card.border-Posted  { border-left-color: var(--sage); }
 .shoot-info { flex: 1; min-width: 0; }
 .shoot-title { font-size: 15px; font-weight: 700; }
@@ -422,7 +422,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .dot-Planned { background: var(--blue); }
 .dot-Shot    { background: var(--amber); }
-.dot-Editing  { background: var(--plum); }
+.dot-edited  { background: var(--plum); }
 .dot-Posted  { background: var(--sage); }
 
 /* ========== FILTER BAR ========== */
@@ -1047,7 +1047,7 @@ body { background: var(--cream); }
 }
 .type-progress-fill.progress-Planned { width: 0; background: var(--blue); }
 .type-progress-fill.progress-Shot { background: var(--amber); }
-.type-progress-fill.progress-Editing { background: var(--plum); }
+.type-progress-fill.progress-edited { background: var(--plum); }
 .type-progress-fill.progress-Posted { background: var(--sage); }
 
 .type-advance-btn {
@@ -1231,7 +1231,7 @@ body { background: var(--cream); }
 .day-shoot-card:active { transform: scale(.98); }
 .day-shoot-card.border-Planned { border-left-color: var(--blue); }
 .day-shoot-card.border-Shot    { border-left-color: var(--amber); }
-.day-shoot-card.border-Editing { border-left-color: var(--plum); }
+.day-shoot-card.border-edited { border-left-color: var(--plum); }
 .day-shoot-card.border-Posted  { border-left-color: var(--sage); }
 .day-shoot-top {
   display: flex;

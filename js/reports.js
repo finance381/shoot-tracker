@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
 
-const STATUS_ORDER = ['Planned', 'Shot', 'Editing', 'Posted'];
+const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 let renderGen = 0;
 
 // Default to current month
@@ -104,7 +104,7 @@ export async function render() {
   });
 }
 
-const PHASE_WEIGHT = { Planned: 0, Shot: 40, Editing: 75, Posted: 100 };
+const PHASE_WEIGHT = { Planned: 0, Shot: 40, edited: 75, Posted: 100 };
 
 function getShootCompletion(s) {
   const ts = s.type_statuses || {};
@@ -114,7 +114,7 @@ function getShootCompletion(s) {
 }
 
 function getStatusCounts(shoots) {
-  const counts = { Planned: 0, Shot: 0, Editing: 0, Posted: 0, total: 0, avgCompletion: 0 };
+  const counts = { Planned: 0, Shot: 0, edited: 0, Posted: 0, total: 0, avgCompletion: 0 };
   shoots.forEach(s => {
     counts[s.status] = (counts[s.status] || 0) + 1;
     counts.total++;
@@ -140,8 +140,8 @@ function renderSummaryCards(shoots, memberId) {
         <div class="stat-label">Avg Completion</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">${c.Editing || 0}</div>
-        <div class="stat-label">In Editing</div>
+        <div class="stat-value">${c.edited || 0}</div>
+        <div class="stat-label">In edited</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">${c.Posted || 0}</div>
@@ -188,7 +188,7 @@ function renderMemberTable(shoots, team, logs, memberId) {
         <td class="report-name-cell">${m.name}</td>
         <td>${counts.total}</td>
         <td>${counts.Shot || 0}</td>
-        <td>${counts.Editing || 0}</td>
+        <td>${counts.edited || 0}</td>
         <td>${counts.Posted || 0}</td>
         <td>${completionRate}</td>
         <td>${avgTurnaround}</td>
@@ -209,7 +209,7 @@ function renderMemberTable(shoots, team, logs, memberId) {
             <th>Name</th>
             <th>Total</th>
             <th>Shot</th>
-            <th>Editing</th>
+            <th>edited</th>
             <th>Posted</th>
             <th>Done %</th>
             <th>Avg TAT</th>
@@ -224,7 +224,7 @@ function renderMemberTable(shoots, team, logs, memberId) {
               <td><strong>Total</strong></td>
               <td><strong>${totals.total}</strong></td>
               <td><strong>${totals.Shot || 0}</strong></td>
-              <td><strong>${totals.Editing || 0}</strong></td>
+              <td><strong>${totals.edited || 0}</strong></td>
               <td><strong>${totals.Posted || 0}</strong></td>
               <td><strong>${totals.total > 0 ? Math.round((totals.Posted / totals.total) * 100) + '%' : '—'}</strong></td>
               <td>—</td>
@@ -240,8 +240,8 @@ function renderTurnaroundSection(allShoots, logs, team, memberId) {
   // Phase transitions turnaround
   const transitions = [
     { from: 'Planned', to: 'Shot', label: 'Planned → Shot' },
-    { from: 'Shot', to: 'Editing', label: 'Shot → Editing' },
-    { from: 'Editing', to: 'Posted', label: 'Editing → Posted' },
+    { from: 'Shot', to: 'edited', label: 'Shot → edited' },
+    { from: 'edited', to: 'Posted', label: 'edited → Posted' },
   ];
 
   const filteredShoots = memberId === 'All' ? allShoots : allShoots.filter(s => s.assignee_id === memberId);

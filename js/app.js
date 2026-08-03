@@ -463,10 +463,10 @@ function setupShootModal() {
   const statusGroup = document.getElementById('status-group');
   const statusBar = document.getElementById('s-status-bar');
   const deleteBtn = document.getElementById('modal-delete');
-  let editingShoot = null;
+  let editedShoot = null;
 
   let openedAt = 0;
-  const close = () => { overlay.classList.add('hidden'); editingShoot = null; isOpening = false; };
+  const close = () => { overlay.classList.add('hidden'); editedShoot = null; isOpening = false; };
 
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
@@ -479,7 +479,7 @@ function setupShootModal() {
   async function open(shoot = null, defaults = {}) {
     if (isOpening) return;
     isOpening = true;
-    editingShoot = shoot;
+    editedShoot = shoot;
     const isEdit = !!shoot;
 
     try {
@@ -575,9 +575,9 @@ function setupShootModal() {
     plannedBtn.onclick = () => { plannedBtn.classList.add('active'); impromptuBtn.classList.remove('active'); };
     impromptuBtn.onclick = () => { impromptuBtn.classList.add('active'); plannedBtn.classList.remove('active'); };
 
-    // Status bar (edit only) — uses "Editing" instead of "Edited"
+    // Status bar (edit only) — uses "edited" instead of "Edited"
     if (isEdit) {
-      const statuses = ['Planned', 'Shot', 'Editing', 'Posted'];
+      const statuses = ['Planned', 'Shot', 'edited', 'Posted'];
       statusBar.innerHTML = statuses.map(s =>
         `<button data-status="${s}" class="${shoot.status === s ? 'active-' + s : ''}">${s}</button>`
       ).join('');
@@ -670,46 +670,46 @@ function setupShootModal() {
 
     let status = 'Planned';
     let userChangedStatus = false;
-    if (editingShoot) {
+    if (editedShoot) {
       const activeStatus = statusBar.querySelector('button[class^="active-"]');
-      status = activeStatus?.dataset.status || editingShoot.status;
-      userChangedStatus = status !== editingShoot.status;
+      status = activeStatus?.dataset.status || editedShoot.status;
+      userChangedStatus = status !== editedShoot.status;
     }
 
-    const STATUS_ORDER = ['Planned', 'Shot', 'Editing', 'Posted'];
+    const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
     const types = type.split(',').map(t => t.trim()).filter(Boolean);
     let type_statuses = {};
-    if (editingShoot && editingShoot.type_statuses) {
+    if (editedShoot && editedShoot.type_statuses) {
       types.forEach(t => {
         if (userChangedStatus) {
           // User explicitly changed the status bar → bulk apply to all types
           type_statuses[t] = status;
         } else {
           // Status bar untouched → preserve existing per-type statuses; new types default to overall
-          type_statuses[t] = editingShoot.type_statuses[t] || status;
+          type_statuses[t] = editedShoot.type_statuses[t] || status;
         }
       });
     } else {
       types.forEach(t => { type_statuses[t] = status; });
     }
 
-    const overallStatus = editingShoot
+    const overallStatus = editedShoot
       ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
       : 'Planned';
 
     const row = { date, time, type, client, requested_by, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
-    if (editingShoot) {
-      const { data: updated } = await supabase.from('shoots').update(row).eq('id', editingShoot.id).select().single();
+    if (editedShoot) {
+      const { data: updated } = await supabase.from('shoots').update(row).eq('id', editedShoot.id).select().single();
 
       // Log type status changes
-      const oldTS = editingShoot.type_statuses || {};
+      const oldTS = editedShoot.type_statuses || {};
       const newTS = type_statuses || {};
       const me = getMember();
       for (const t of Object.keys(newTS)) {
         if (oldTS[t] && oldTS[t] !== newTS[t]) {
           await supabase.from('audit_log').insert({
-            shoot_id: editingShoot.id,
+            shoot_id: editedShoot.id,
             member_id: me?.id,
             member_name: me?.name || 'Unknown',
             type_name: t,
@@ -757,10 +757,10 @@ function setupShootModal() {
 
   // Delete
   deleteBtn.addEventListener('click', async () => {
-    if (!editingShoot || !confirm('Delete this shoot?')) return;
+    if (!editedShoot || !confirm('Delete this shoot?')) return;
     try {
-      await supabase.from('shoots').delete().eq('id', editingShoot.id);
-      syncShoot(editingShoot, 'delete');
+      await supabase.from('shoots').delete().eq('id', editedShoot.id);
+      syncShoot(editedShoot, 'delete');
       close();
       pages[currentPage]();
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot deleted' }));

@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
 
-const STATUS_ORDER = ['Planned', 'Shot', 'Editing', 'Posted'];
+const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 let renderGen = 0;
 let filterTab = 'pending';
 
