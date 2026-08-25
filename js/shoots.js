@@ -115,10 +115,11 @@ export async function render() {
     el.innerHTML = '<div class="page-loader"><div class="skeleton-card short"></div><div class="skeleton-card short"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
   }
 
-  const [shootsRes, teamRes, mastersRes] = await Promise.all([
+  const [shootsRes, teamRes, mastersRes, logsRes] = await Promise.all([
     supabase.from('shoots').select('*').order('date', { ascending: true }).order('time', { ascending: true, nullsFirst: false }).order('id', { ascending: true }),
     supabase.from('team_members').select('id, name, role'),
-    supabase.from('masters').select('*').eq('type', 'location').order('sort_order')
+    supabase.from('masters').select('*').eq('type', 'location').order('sort_order'),
+    supabase.from('audit_log').select('shoot_id, type_name, member_name, created_at').order('created_at', { ascending: false })
   ]);
 
   // Only bail if a NEWER render has started AND completed data fetch
@@ -128,6 +129,13 @@ export async function render() {
   teamCache = teamRes.data || [];
   venueCache = (mastersRes.data || []).map(m => m.label);
   const me = getMember();
+
+  // Logs are ordered newest-first, so the first entry seen per (shoot, type) is the latest.
+  const lastChangeMap = {};
+  (logsRes.data || []).forEach(l => {
+    const key = `${l.shoot_id}::${l.type_name}`;
+    if (!lastChangeMap[key]) lastChangeMap[key] = l.member_name;
+  });
 
   const filtered = shoots.filter(s => {
     if (filterMember !== 'All' && s.assignee_id !== filterMember) return false;
@@ -299,7 +307,7 @@ export async function render() {
     btn.addEventListener('click', () => { filterDateDir = btn.dataset.dir; render(); });
   });
 
-  renderDateGrouped(el.querySelector('#shoots-content'), filtered, shoots, me);
+  renderDateGrouped(el.querySelector('#shoots-content'), filtered, shoots, me, lastChangeMap);
 }
 
 function venueFilterLabel(venues) {
@@ -405,7 +413,7 @@ function formatDateHeading(dateStr) {
   return formatted;
 }
 
-function renderDateGrouped(el, filtered, allShoots, me) {
+function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
   const grouped = {};
   filtered.forEach(s => {
     if (!grouped[s.date]) grouped[s.date] = [];
@@ -439,7 +447,7 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   }
 
   const visibleShoots = dates.flatMap(d => grouped[d]);
-  el.innerHTML = renderDeptSummary(computeDeptStatusSummary(visibleShoots)) + renderDateGroups(dates, grouped, me);
+  el.innerHTML = renderDeptSummary(computeDeptStatusSummary(visibleShoots)) + renderDateGroups(dates, grouped, me, lastChangeMap);
 
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async (e) => {
@@ -499,19 +507,19 @@ function renderDateGrouped(el, filtered, allShoots, me) {
   });
 }
 
-function renderDateGroups(dates, grouped, me) {
+function renderDateGroups(dates, grouped, me, lastChangeMap) {
   return dates.map(date => {
     const shoots = grouped[date];
     return `
       <div class="date-group">
         <div class="date-heading">${formatDateHeading(date)}</div>
-        ${shoots.map(s => renderShootCard(s, me)).join('')}
+        ${shoots.map(s => renderShootCard(s, me, lastChangeMap)).join('')}
       </div>
     `;
   }).join('');
 }
 
-function renderShootCard(s, me) {
+function renderShootCard(s, me, lastChangeMap) {
   const isMine = me && s.assignee_id === me.id;
   const ts = s.type_statuses || {};
   const types = Object.keys(ts);
@@ -538,13 +546,15 @@ function renderShootCard(s, me) {
             ${types.map(t => {
               const tStatus = ts[t];
               const iconMeta = TYPE_ICON_META[t] || DEFAULT_TYPE_ICON;
+              const lastBy = lastChangeMap?.[`${s.id}::${t}`];
               return `
                 <div class="type-status-row">
                   <span class="type-icon-circle" style="background:${iconMeta.bg};color:${iconMeta.color}">${iconMeta.icon}</span>
                   <span class="type-name">${t}</span>
                   ${renderStepper(s.id, t, tStatus)}
                   <span class="type-current-label status-${tStatus}">${STATUS_LABEL[tStatus]}</span>
-                </div>`;
+                </div>
+                ${lastBy ? `<div class="type-last-editor">Last updated by <strong>${lastBy}</strong></div>` : ''}`;
             }).join('')}
           </div>
         ` : `

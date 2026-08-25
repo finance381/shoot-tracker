@@ -24,6 +24,15 @@ function getPreviousPeriod(from, to) {
   return { prevFrom: prevFrom.toISOString().slice(0, 10), prevTo: prevTo.toISOString().slice(0, 10) };
 }
 
+// A member can be relevant to a shoot either as the assigned photographer or as
+// whoever actually performed a status change on it (e.g. an editor) — reports should
+// reflect both, otherwise picking an editor in the filter zeroes out the whole page.
+function filterShootsForMember(shoots, logs, memberId) {
+  if (memberId === 'All') return shoots;
+  const touchedIds = new Set(logs.filter(l => l.member_id === memberId).map(l => l.shoot_id));
+  return shoots.filter(s => s.assignee_id === memberId || touchedIds.has(s.id));
+}
+
 function trendBadge(current, previous) {
   if (!previous) return current > 0 ? `<span class="trend-badge trend-up">New</span>` : '';
   const pct = Math.round(((current - previous) / previous) * 100);
@@ -64,6 +73,10 @@ export async function render() {
   // Previous equivalent period, for trend comparison — reuses allShoots, no new fetch
   const { prevFrom, prevTo } = getPreviousPeriod(dateFrom, dateTo);
   const prevShoots = allShoots.filter(s => s.date >= prevFrom && s.date <= prevTo);
+  const prevLogs = allLogs.filter(l => {
+    const shootDate = allShoots.find(s => s.id === l.shoot_id)?.date;
+    return shootDate && shootDate >= prevFrom && shootDate <= prevTo;
+  });
 
   // Quarterly presets
   const year = new Date().getFullYear();
@@ -108,15 +121,16 @@ export async function render() {
       </div>
     </div>
 
-    ${renderSummaryCards(shoots, prevShoots, filterMemberId)}
+    ${renderSummaryCards(shoots, prevShoots, logs, prevLogs, filterMemberId)}
     <div class="reports-overview-row">
-      ${renderShootOverviewDonut(shoots, filterMemberId)}
+      ${renderShootOverviewDonut(shoots, logs, filterMemberId)}
       ${renderTopPerformers(shoots, team, filterMemberId)}
     </div>
-    ${renderDepartmentBreakdown(shoots, filterMemberId)}
+    ${renderDepartmentBreakdown(shoots, logs, filterMemberId)}
     ${renderMemberTable(shoots, team, logs, filterMemberId)}
+    ${renderActivityByPerson(logs, filterMemberId)}
     ${renderTurnaroundSection(allShoots, logs, team, filterMemberId)}
-    ${renderBreakdownSection(shoots, allShoots, filterMemberId)}
+    ${renderBreakdownSection(shoots, allShoots, logs, filterMemberId)}
   `;
 
   // Date change handlers
@@ -124,7 +138,7 @@ export async function render() {
   el.querySelector('#r-to').addEventListener('change', (e) => { dateTo = e.target.value; render(); });
   el.querySelector('#r-member').addEventListener('change', (e) => { filterMemberId = e.target.value; render(); });
   el.querySelector('#show-inactive-btn')?.addEventListener('click', () => { showInactiveMembers = !showInactiveMembers; render(); });
-  wireBreakdownControls(shoots, allShoots, filterMemberId);
+  wireBreakdownControls(shoots, allShoots, logs, filterMemberId);
 
   // Preset buttons
   el.querySelectorAll('.preset-btn').forEach(btn => {
@@ -188,9 +202,9 @@ const ICONS = {
   check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
 };
 
-function renderSummaryCards(shoots, prevShoots, memberId) {
-  const filtered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
-  const prevFiltered = memberId === 'All' ? prevShoots : prevShoots.filter(s => s.assignee_id === memberId);
+function renderSummaryCards(shoots, prevShoots, logs, prevLogs, memberId) {
+  const filtered = filterShootsForMember(shoots, logs, memberId);
+  const prevFiltered = filterShootsForMember(prevShoots, prevLogs, memberId);
   const c = getStatusCounts(filtered);
   const p = getStatusCounts(prevFiltered);
 
@@ -217,8 +231,8 @@ function renderSummaryCards(shoots, prevShoots, memberId) {
   `;
 }
 
-function renderShootOverviewDonut(shoots, memberId) {
-  const filtered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
+function renderShootOverviewDonut(shoots, logs, memberId) {
+  const filtered = filterShootsForMember(shoots, logs, memberId);
   const c = getStatusCounts(filtered);
 
   const STATUS_META = [
@@ -301,8 +315,8 @@ const SHOOT_TYPE_META = [
 ];
 const SHOOT_TYPES = SHOOT_TYPE_META.map(t => t.key);
 
-function computeDeptTypeCounts(shoots, memberId) {
-  const filtered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
+function computeDeptTypeCounts(shoots, logs, memberId) {
+  const filtered = filterShootsForMember(shoots, logs, memberId);
   const counts = {};
   DEPARTMENTS.forEach(d => { counts[d] = { Photo: 0, Reel: 0, 'Sales Video': 0, total: 0, shootCount: 0 }; });
 
@@ -368,8 +382,8 @@ function renderDepartmentPieGrid(counts) {
   `;
 }
 
-function renderDepartmentBreakdown(shoots, memberId) {
-  const { counts } = computeDeptTypeCounts(shoots, memberId);
+function renderDepartmentBreakdown(shoots, logs, memberId) {
+  const { counts } = computeDeptTypeCounts(shoots, logs, memberId);
   return `
     <p class="section-title" style="margin-top:20px">By Department</p>
     ${renderDepartmentPieGrid(counts)}
@@ -380,7 +394,7 @@ function renderMemberTable(shoots, team, logs, memberId) {
   const members = memberId === 'All' ? team : team.filter(m => m.id === memberId);
 
   const memberRows = members.map(m => {
-    const memberShoots = shoots.filter(s => s.assignee_id === m.id);
+    const memberShoots = filterShootsForMember(shoots, logs, m.id);
     const counts = getStatusCounts(memberShoots);
 
     // Turnaround: average days from shoot date to Posted (using audit_log)
@@ -427,11 +441,12 @@ function renderMemberTable(shoots, team, logs, memberId) {
   const rows = active.map(r => r.html).concat(showInactiveMembers ? inactive.map(r => r.html) : []);
 
   // Totals row
-  const allFiltered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
+  const allFiltered = filterShootsForMember(shoots, logs, memberId);
   const totals = getStatusCounts(allFiltered);
 
   return `
     <p class="section-title" style="margin-top:20px">Member Breakdown</p>
+    <p class="section-subtitle">Where each member's shoots currently stand — Shot/Edited/Posted here means "how many of their shoots are AT that stage right now"</p>
     <div class="report-table-wrap">
       <table class="report-table">
         <thead>
@@ -467,6 +482,56 @@ function renderMemberTable(shoots, team, logs, memberId) {
   `;
 }
 
+function renderActivityByPerson(logs, memberId) {
+  const relevantLogs = memberId === 'All' ? logs : logs.filter(l => l.member_id === memberId);
+
+  const byMember = {};
+  relevantLogs.forEach(l => {
+    const key = l.member_id || l.member_name;
+    if (!key) return;
+    if (!byMember[key]) byMember[key] = { name: l.member_name, Shot: 0, edited: 0, Posted: 0, shootIds: new Set() };
+    if (byMember[key][l.to_status] !== undefined) byMember[key][l.to_status]++;
+    byMember[key].shootIds.add(l.shoot_id);
+  });
+
+  const rows = Object.values(byMember)
+    .map(r => ({ ...r, total: r.shootIds.size }))
+    .sort((a, b) => (b.Shot + b.edited + b.Posted) - (a.Shot + a.edited + a.Posted));
+
+  return `
+    <p class="section-title" style="margin-top:20px">Activity by Person</p>
+    <p class="section-subtitle">Who actually made the change — counts every status update this person performed, including on shoots assigned to someone else, and across every type in a multi-type shoot</p>
+    ${rows.length === 0
+      ? '<div class="empty-state" style="padding:20px 0"><div class="emoji">🎬</div>No status changes in this period</div>'
+      : `
+        <div class="report-table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Shoots Updated</th>
+                <th>Shot</th>
+                <th>Edited</th>
+                <th>Posted</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td class="report-name-cell">${r.name}</td>
+                  <td>${r.total}</td>
+                  <td>${r.Shot}</td>
+                  <td>${r.edited}</td>
+                  <td>${r.Posted}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+  `;
+}
+
 function renderTurnaroundSection(allShoots, logs, team, memberId) {
   // Phase transitions turnaround
   const transitions = [
@@ -475,7 +540,7 @@ function renderTurnaroundSection(allShoots, logs, team, memberId) {
     { from: 'edited', to: 'Posted', label: 'Edited → Posted' },
   ];
 
-  const filteredShoots = memberId === 'All' ? allShoots : allShoots.filter(s => s.assignee_id === memberId);
+  const filteredShoots = filterShootsForMember(allShoots, logs, memberId);
   const shootIds = new Set(filteredShoots.filter(s => s.date >= dateFrom && s.date <= dateTo).map(s => s.id));
   const relevantLogs = logs.filter(l => shootIds.has(l.shoot_id));
 
@@ -739,28 +804,28 @@ function renderBreakdownInner(filteredShoots, allShoots) {
   `;
 }
 
-function renderBreakdownSection(shoots, allShoots, memberId) {
-  const filtered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
+function renderBreakdownSection(shoots, allShoots, logs, memberId) {
+  const filtered = filterShootsForMember(shoots, logs, memberId);
   return `<div id="reports-breakdown">${renderBreakdownInner(filtered, allShoots)}</div>`;
 }
 
-function updateBreakdown(shoots, allShoots, memberId) {
+function updateBreakdown(shoots, allShoots, logs, memberId) {
   const wrap = document.getElementById('reports-breakdown');
   if (!wrap) return;
-  const filtered = memberId === 'All' ? shoots : shoots.filter(s => s.assignee_id === memberId);
+  const filtered = filterShootsForMember(shoots, logs, memberId);
   wrap.innerHTML = renderBreakdownInner(filtered, allShoots);
-  wireBreakdownControls(shoots, allShoots, memberId);
+  wireBreakdownControls(shoots, allShoots, logs, memberId);
 }
 
-function wireBreakdownControls(shoots, allShoots, memberId) {
+function wireBreakdownControls(shoots, allShoots, logs, memberId) {
   const wrap = document.getElementById('reports-breakdown');
   if (!wrap) return;
   wrap.querySelector('#breakdown-dept-select')?.addEventListener('change', (e) => {
     breakdownDeptFilter = e.target.value;
-    updateBreakdown(shoots, allShoots, memberId);
+    updateBreakdown(shoots, allShoots, logs, memberId);
   });
   wrap.querySelector('#breakdown-type-select')?.addEventListener('change', (e) => {
     breakdownTypeFilter = e.target.value;
-    updateBreakdown(shoots, allShoots, memberId);
+    updateBreakdown(shoots, allShoots, logs, memberId);
   });
 }

@@ -1231,6 +1231,12 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   color: var(--stone);
   margin-bottom: 12px;
 }
+.section-subtitle {
+  font-size: 12px;
+  color: var(--stone);
+  margin: -8px 0 12px;
+  line-height: 1.4;
+}
 
 /* ========== TOAST ========== */
 .toast {
@@ -1677,6 +1683,15 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.type-last-editor {
+  font-size: 11px;
+  color: var(--stone);
+  margin: -4px 0 0 38px;
+}
+.type-last-editor strong {
+  color: var(--espresso);
+  font-weight: 700;
+}
 
 /* ========== STEPPER ========== */
 .stepper {
@@ -1748,6 +1763,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   }
   .stepper-label { display: none; }
   .stepper-dot { width: 14px; height: 14px; }
+  .type-last-editor { margin: 0 0 0 34px; }
   .stepper-node.is-current .stepper-dot { border-width: 2px; }
   .stepper-line { min-width: 8px; margin-top: 6px; }
 }
@@ -2090,15 +2106,16 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 16px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  background: var(--white);
 }
 .report-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 13px;
   background: var(--white);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow);
 }
 .report-table th {
   background: var(--sand);
@@ -2109,12 +2126,18 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   letter-spacing: .04em;
   padding: 10px 12px;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
 }
 .report-table td {
   padding: 12px;
   border-top: 1px solid var(--border);
   color: var(--espresso);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-table th:first-child,
+.report-table td:first-child {
+  width: 22%;
 }
 .report-table tfoot td {
   background: var(--sand);
@@ -2123,6 +2146,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .report-name-cell {
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ========== REPORTS: TREND BADGES ========== */
