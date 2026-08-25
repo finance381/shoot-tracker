@@ -105,7 +105,8 @@
 }
 :root[data-theme="dark"] body,
 :root[data-theme="dark"] #auth-screen,
-:root[data-theme="dark"] #requester-login {
+:root[data-theme="dark"] #requester-login,
+:root[data-theme="dark"] #requester-app {
   background:
     radial-gradient(ellipse 620px 480px at 8% 8%, rgba(124,105,239,0.14), transparent 60%),
     radial-gradient(ellipse 560px 460px at 95% 12%, rgba(232,116,143,0.10), transparent 60%),
@@ -237,7 +238,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   cursor: pointer;
   font-size: 13px;
 }
-.auth-input-wrap { position: relative; }
+.auth-input-wrap { position: relative; display: block; width: 100%; }
 .auth-input-wrap .auth-input-icon {
   position: absolute;
   left: 14px;
@@ -247,7 +248,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   pointer-events: none;
   display: flex;
 }
-.form-group .auth-input-wrap input { padding-left: 40px; }
+.form-group .auth-input-wrap input { width: 100%; padding-left: 40px; }
 .auth-card .btn-primary { box-shadow: 0 8px 20px var(--primary-soft); }
 
 /* ========== FORM ELEMENTS ========== */
@@ -2790,20 +2791,31 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 /* ========== REQUESTER APP ========== */
 #requester-app {
   height: 100dvh;
-  background: var(--cream);
+  background:
+    radial-gradient(ellipse 620px 480px at 8% 8%, rgba(37,5,228,0.16), transparent 60%),
+    radial-gradient(ellipse 560px 460px at 95% 12%, rgba(224,73,109,0.14), transparent 60%),
+    radial-gradient(ellipse 600px 520px at 12% 92%, rgba(78,113,72,0.14), transparent 60%),
+    radial-gradient(ellipse 640px 520px at 92% 90%, rgba(198,150,60,0.16), transparent 60%),
+    linear-gradient(135deg, #F4EFE7 0%, #EFE6D8 45%, #F0E4D2 100%);
+  background-attachment: fixed;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 .req-app-header {
   position: sticky;
   top: 0;
-  background: var(--white);
+  background: rgba(255,253,249,0.85);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--border);
   padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 10;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .req-app-header { background: var(--surface-solid); }
 }
 .req-app-title { font-size: 18px; font-weight: 800; }
 .req-app-sub { font-size: 12px; color: var(--stone); }
@@ -2816,8 +2828,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   flex: 1;
   padding: 10px;
   border: none;
-  border-radius: 10px;
-  background: var(--sand);
+  border-radius: var(--radius-sm);
+  background: var(--surface-tint);
   font-size: 13px;
   font-weight: 700;
   color: var(--stone);
@@ -2826,8 +2838,9 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   transition: all .15s;
 }
 .req-app-tab.active {
-  background: var(--espresso);
-  color: var(--cream);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px var(--primary-soft);
 }
 .req-app-content {
   padding: 16px;
@@ -2842,21 +2855,27 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 
 /* Requester request cards */
 .req-list-card {
-  background: var(--white);
-  border-radius: 14px;
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 10px;
-  box-shadow: 0 2px 12px rgba(45,36,24,.06);
+  box-shadow: var(--shadow-sm);
   border-left: 4px solid var(--amber);
 }
+@supports not (backdrop-filter: blur(1px)) {
+  .req-list-card { background: var(--surface-solid); }
+}
 .req-list-card.req-list-accepted { border-left-color: var(--sage); }
-.req-list-card.req-list-rejected { border-left-color: #C0392B; }
+.req-list-card.req-list-rejected { border-left-color: var(--danger); }
 .req-list-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
 .req-list-func { font-size: 15px; font-weight: 700; }
 .req-list-date { font-size: 13px; color: var(--stone); margin-top: 2px; }
 .req-list-loc { font-size: 12px; color: var(--stone); margin-top: 4px; }
 .req-list-notes { font-size: 12px; color: var(--stone); margin-top: 4px; font-style: italic; }
-.req-list-reject { font-size: 12px; color: #C0392B; margin-top: 6px; font-weight: 600; }
+.req-list-reject { font-size: 12px; color: var(--danger); margin-top: 6px; font-weight: 600; }
 .req-list-accepted { font-size: 12px; color: var(--sage); margin-top: 6px; font-weight: 600; }
 .req-list-badge {
   font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 12px;
@@ -2864,7 +2883,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .req-badge-pending { background: var(--amber-bg); color: var(--amber); }
 .req-badge-accepted { background: var(--sage-bg); color: var(--sage); }
-.req-badge-rejected { background: #FFF0F0; color: #C0392B; }
+.req-badge-rejected { background: var(--danger-soft); color: var(--danger); }
 
 /* Requester form */
 .req-form { padding: 4px 0; }
@@ -2873,29 +2892,39 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .req-form-group input,
 .req-form-group select,
 .req-form-group textarea {
-  padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border);
-  background: var(--cream); color: var(--espresso); font-size: 15px;
-  font-family: var(--font); outline: none;
+  padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: rgba(255,253,249,0.55); color: var(--espresso); font-size: 15px;
+  font-family: var(--font); outline: none; transition: border-color .2s, box-shadow .2s;
 }
 .req-form-group input:focus,
 .req-form-group select:focus,
-.req-form-group textarea:focus { border-color: var(--terracotta); }
+.req-form-group textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
 .req-form-error {
-  background: #FFF0F0; color: #C0392B; font-size: 13px; font-weight: 600;
+  background: var(--danger-soft); color: var(--danger); font-size: 13px; font-weight: 600;
   padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;
 }
 .req-form-submit {
-  width: 100%; padding: 14px; border-radius: 10px; background: var(--terracotta);
+  width: 100%; padding: 14px; border-radius: var(--radius-sm); background: var(--primary);
   color: #fff; border: none; font-weight: 700; font-size: 16px; cursor: pointer;
-  font-family: var(--font);
+  font-family: var(--font); transition: background .2s, transform .1s;
+  box-shadow: 0 8px 20px var(--primary-soft);
 }
+.req-form-submit:active { background: var(--primary-hover); transform: scale(.98); }
 .req-form-submit:disabled { opacity: .6; }
 /* ========== REQUESTER FORM HEADER ========== */
 .req-form-header {
   text-align: center;
   margin-bottom: 20px;
 }
-.req-form-icon { font-size: 36px; margin-bottom: 4px; }
+.req-form-icon {
+  width: 64px; height: 64px; margin: 0 auto 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary-soft); border-radius: 50%;
+  font-size: 30px;
+}
 .req-form-title { font-size: 20px; font-weight: 800; color: var(--espresso); }
 .req-form-sub { font-size: 13px; color: var(--stone); margin-top: 4px; }
 
@@ -2912,7 +2941,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   width: 100%;
   padding: 14px;
   margin-top: 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--sand);
   color: var(--bark);
   border: none;
@@ -2925,9 +2954,9 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   margin-top: 8px;
   padding: 6px 14px;
   border-radius: 8px;
-  background: #FFF0F0;
-  color: #C0392B;
-  border: 1.5px solid #E0C0C0;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid rgba(192,57,43,.3);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -2939,15 +2968,16 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .req-search-input {
   width: 100%;
   padding: 10px 14px;
-  border-radius: 10px;
-  border: 1.5px solid var(--border);
-  background: var(--white);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255,253,249,0.7);
   color: var(--espresso);
   font-size: 14px;
   font-family: var(--font);
   outline: none;
+  transition: border-color .2s, box-shadow .2s;
 }
-.req-search-input:focus { border-color: var(--terracotta); }
+.req-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .req-list-by {
   font-size: 12px;
   color: var(--stone);
@@ -2963,22 +2993,18 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   border-radius: 8px;
   background: var(--sand);
   color: var(--bark);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   font-family: var(--font);
 }
-#requester-app {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
 .req-pull-refresh {
   text-align: center;
   font-size: 13px;
   font-weight: 700;
-  color: var(--terracotta);
-  background: var(--cream);
+  color: var(--primary);
+  background: transparent;
   display: none;
   padding: 10px;
 }
