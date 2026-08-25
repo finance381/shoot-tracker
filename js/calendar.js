@@ -54,9 +54,9 @@ export async function render() {
 
   el.innerHTML = `
     <div class="cal-nav">
-      <button class="cal-nav-btn" id="cal-prev">‹</button>
+      <button class="cal-nav-btn" id="cal-prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <span class="cal-month-label">${MONTHS[viewMonth]} ${viewYear}</span>
-      <button class="cal-nav-btn" id="cal-next">›</button>
+      <button class="cal-nav-btn" id="cal-next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>
     <div class="cal-grid">
       ${DAYS.map(d => `<div class="cal-day-header">${d}</div>`).join('')}
@@ -77,20 +77,28 @@ export async function render() {
     cell.addEventListener('click', () => {
       const date = cell.dataset.date;
       const dayS = all.filter(s => s.date === date);
-      if (dayS.length === 0) {
-        if (date < today) {
-          window.dispatchEvent(new CustomEvent('toast', { detail: 'This date has already passed' }));
-          return;
-        }
-        window.dispatchEvent(new CustomEvent('new-shoot', { detail: { date } }));
-      } else {
-        openDaySheet(date, dayS, team);
-      }
+      openDayDetail(date, dayS, team);
     });
   });
 }
 
-function openDaySheet(date, shoots, team) {
+// Shared day-click behavior — reused by the Calendar page's own grid and by
+// the desktop Home-page mini calendar, so both stay on their own page and
+// get identical toast/new-shoot/day-sheet behavior for a given date.
+export function openDayDetail(date, dayShoots, team) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (dayShoots.length === 0) {
+    if (date < today) {
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'This date has already passed' }));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('new-shoot', { detail: { date } }));
+    return;
+  }
+  openDaySheet(date, dayShoots, team);
+}
+
+export function openDaySheet(date, shoots, team) {
   document.getElementById('cal-day-sheet')?.remove();
 
   const d = new Date(date + 'T00:00:00');
@@ -123,7 +131,7 @@ function openDaySheet(date, shoots, team) {
         ${shoots.map(s => {
           const ts = s.type_statuses || {};
           const types = Object.keys(ts).length > 0
-            ? Object.entries(ts).map(([t, st]) => `<span class="tag tag-type">${t} <small style="opacity:.7">${st}</small></span>`).join('')
+            ? Object.entries(ts).map(([t, st]) => `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`).join('')
             : (s.type || '').split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
           const loc = s.location_type === 'outdoor' ? (s.outdoor_venue || 'Outdoor') : (s.location || '');
           return `

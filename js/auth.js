@@ -6,7 +6,7 @@ let authListenerSet = false;
 
 export function getUser() { return currentUser; }
 export function getMember() { return currentMember; }
-export function isAdmin() { return currentMember?.is_admin === true; }
+export function isAdmin() { return !!currentMember?.is_admin; }
 
 export async function initAuth() {
   const { data: { session }, error } = await supabase.auth.getSession();

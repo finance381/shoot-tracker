@@ -58,6 +58,18 @@ let currentPage = 'dashboard';
 let renderGeneration = 0;
 let appSetupDone = false;
 
+// Redirect Calendar → Home when crossing into desktop breakpoint — the
+// sidebar has no Calendar tab at that width, so the page would otherwise
+// be stranded with no way to navigate off it.
+const desktopMQ = window.matchMedia('(min-width: 1024px)');
+function handleDesktopSwitch(e) {
+  if (!e.matches) return; // only care about entering desktop
+  if (currentPage === 'calendar') {
+    document.querySelector('.nav-tab[data-page="dashboard"]')?.click();
+  }
+}
+desktopMQ.addEventListener('change', handleDesktopSwitch);
+
 // ===== INIT =====
 async function init() {
   // Check requester login first
@@ -302,7 +314,7 @@ function showApp() {
   document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
 
   // Show/hide reports tab based on admin
-  const reportsTab = document.querySelector('[data-page="reports"]');
+  const reportsTab = document.querySelector('.nav-tab[data-page="reports"]');
   if (reportsTab) {
     reportsTab.style.display = isAdmin() ? '' : 'none';
   }
@@ -310,6 +322,8 @@ function showApp() {
   if (!appSetupDone) {
     appSetupDone = true;
     setupNav();
+    setupSidebarNav();
+    setupThemeToggle();
     setupFab();
     setupLogout();
     setupChangePassword();
@@ -324,6 +338,9 @@ function showApp() {
 
   const savedPage = sessionStorage.getItem('st_page');
   navigate(savedPage && pages[savedPage] ? savedPage : 'dashboard');
+
+  // Also run once on load in case the user reloads on desktop while last-page was calendar
+  handleDesktopSwitch(desktopMQ);
 }
 
 // ===== NAVIGATION =====
@@ -333,9 +350,10 @@ function navigate(page) {
   renderGeneration++;
   const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
+  document.getElementById(`page-${page}`)?.classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  document.querySelector(`.nav-tab[data-page="${page}"]`)?.classList.add('active');
+  document.getElementById('sidebar-status-legend')?.classList.toggle('hidden', page !== 'shoots');
 
   let done = false;
 
@@ -364,6 +382,33 @@ function setupNav() {
   });
 }
 
+// Desktop sidebar mirrors the bottom nav — forwards clicks to the real
+// nav-tab buttons so navigation logic lives in exactly one place.
+function setupSidebarNav() {
+  const sidebar = document.getElementById('desktop-sidebar');
+  if (!sidebar) return;
+
+  const sidebarReportsTab = sidebar.querySelector('.sidebar-tab[data-page="reports"]');
+  if (sidebarReportsTab) sidebarReportsTab.style.display = isAdmin() ? '' : 'none';
+
+  sidebar.querySelectorAll('.sidebar-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelector(`.nav-tab[data-page="${tab.dataset.page}"]`)?.click();
+    });
+  });
+
+  const syncActive = () => {
+    const active = document.querySelector('.nav-tab.active');
+    sidebar.querySelectorAll('.sidebar-tab').forEach(t => {
+      t.classList.toggle('active', !!active && t.dataset.page === active.dataset.page);
+    });
+  };
+  new MutationObserver(syncActive).observe(document.getElementById('bottom-nav'), {
+    subtree: true, attributes: true, attributeFilter: ['class']
+  });
+  syncActive();
+}
+
 // Dashboard card clicks → navigate to shoots with filters
 function setupDashboardNav() {
   window.addEventListener('navigate-shoots', (e) => {
@@ -387,6 +432,33 @@ function setupLogout() {
     await logout();
     try { sessionStorage.removeItem('st_page'); sessionStorage.removeItem('st_filters'); } catch {}
     location.reload();
+  });
+}
+
+// ===== THEME TOGGLE =====
+function setupThemeToggle() {
+  const btn = document.getElementById('theme-toggle-btn');
+  const moonIcon = document.getElementById('theme-icon-moon');
+  const sunIcon = document.getElementById('theme-icon-sun');
+  if (!btn) return;
+
+  const syncIcons = () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    moonIcon.classList.toggle('hidden', isDark);
+    sunIcon.classList.toggle('hidden', !isDark);
+  };
+  syncIcons();
+
+  btn.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      try { localStorage.setItem('st_theme', 'light'); } catch {}
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      try { localStorage.setItem('st_theme', 'dark'); } catch {}
+    }
+    syncIcons();
   });
 }
 

@@ -4,8 +4,75 @@ import { getMember } from './auth.js';
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 let renderGen = 0;
 let filterTab = 'pending';
+let filterSearch = '';
+let filterDepts = [];
+let filterVenues = [];
+let filterDateFrom = '';
+let filterDateTo = '';
+let deptDropdownOpen = false;
+let venueDropdownOpen = false;
+let outsideClickBound = false;
 
 const container = () => document.getElementById('page-requests');
+
+function resetReqFilters() {
+  filterSearch = '';
+  filterDepts = [];
+  filterVenues = [];
+  filterDateFrom = '';
+  filterDateTo = '';
+}
+
+function multiSelectLabel(values, singularAll) {
+  if (values.length === 0) return singularAll;
+  if (values.length === 1) return values[0];
+  return `${values.length} selected`;
+}
+
+const REQ_DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
+
+function getReqFilterOptions(requests) {
+  const extraDepts = new Set();
+  const venueSet = new Set();
+  requests.forEach(r => {
+    (r.department || '').split(',').map(d => d.trim()).filter(Boolean).forEach(d => {
+      if (!REQ_DEPARTMENTS.includes(d)) extraDepts.add(d);
+    });
+    if (r.location) venueSet.add(r.location.trim());
+  });
+  return { depts: [...REQ_DEPARTMENTS, ...Array.from(extraDepts).sort()], venues: Array.from(venueSet).sort() };
+}
+
+function applyReqFilters(list) {
+  return list.filter(r => {
+    if (filterDepts.length > 0) {
+      const rDepts = (r.department || '').split(',').map(d => d.trim());
+      if (!filterDepts.some(d => rDepts.includes(d))) return false;
+    }
+    if (filterVenues.length > 0) {
+      if (!filterVenues.includes((r.location || '').trim())) return false;
+    }
+    if (filterDateFrom && r.date < filterDateFrom) return false;
+    if (filterDateTo && r.date > filterDateTo) return false;
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase();
+      const haystack = [r.requested_by, r.function_name, r.location, r.notes, r.shoot_type, r.department].filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function bindReqOutsideClick() {
+  if (outsideClickBound) return;
+  outsideClickBound = true;
+  document.addEventListener('click', (e) => {
+    let changed = false;
+    if (deptDropdownOpen && !e.target.closest('.req-dept-multiselect')) { deptDropdownOpen = false; changed = true; }
+    if (venueDropdownOpen && !e.target.closest('.req-venue-multiselect')) { venueDropdownOpen = false; changed = true; }
+    if (changed) render();
+  });
+}
 
 export async function render() {
   const myGen = ++renderGen;
@@ -31,7 +98,13 @@ export async function render() {
   const rejected = requests.filter(r => r.status === 'rejected');
 
   const counts = { pending: pending.length, accepted: accepted.length, rejected: rejected.length };
-  const filtered = filterTab === 'pending' ? pending : filterTab === 'accepted' ? accepted : rejected;
+  const byTab = filterTab === 'all' ? requests : filterTab === 'pending' ? pending : filterTab === 'accepted' ? accepted : rejected;
+  const filtered = applyReqFilters(byTab);
+
+  const { depts: deptOptions, venues: venueOptions } = getReqFilterOptions(requests);
+  const activeFilterCount = [
+    filterSearch, filterDepts.length > 0, filterVenues.length > 0, filterDateFrom || filterDateTo
+  ].filter(Boolean).length;
 
   const requestFormURL = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/') + 'request.html';
 
@@ -40,7 +113,60 @@ export async function render() {
       <span class="req-share-label">Share request form</span>
       <button class="req-copy-btn" id="copy-req-link">📋 Copy Link</button>
     </div>
+    <div class="shoots-filter-row">
+      <div class="search-bar-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="req-search" class="shoot-search" placeholder="Search function, requester, venue…" value="${filterSearch}">
+      </div>
+      <div class="venue-multiselect req-dept-multiselect">
+        <button type="button" id="req-dept-btn" class="filter-select venue-select-btn">
+          <span class="venue-select-label">${multiSelectLabel(filterDepts, 'All Departments')}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        ${deptDropdownOpen ? `
+          <div class="venue-dropdown-panel">
+            ${deptOptions.map(d => `
+              <label class="venue-option">
+                <input type="checkbox" value="${d}" ${filterDepts.includes(d) ? 'checked' : ''}>
+                <span>${d}</span>
+              </label>
+            `).join('') || '<div style="padding:8px;font-size:12px;color:var(--stone)">No departments yet</div>'}
+            ${filterDepts.length > 0 ? '<button type="button" class="venue-clear-btn" id="req-dept-clear-btn">Clear selection</button>' : ''}
+          </div>
+        ` : ''}
+      </div>
+      <div class="venue-multiselect req-venue-multiselect">
+        <button type="button" id="req-venue-btn" class="filter-select venue-select-btn">
+          <span class="venue-select-label">${multiSelectLabel(filterVenues, 'All Venues')}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        ${venueDropdownOpen ? `
+          <div class="venue-dropdown-panel">
+            ${venueOptions.map(v => `
+              <label class="venue-option">
+                <input type="checkbox" value="${v}" ${filterVenues.includes(v) ? 'checked' : ''}>
+                <span>${v}</span>
+              </label>
+            `).join('') || '<div style="padding:8px;font-size:12px;color:var(--stone)">No venues yet</div>'}
+            ${filterVenues.length > 0 ? '<button type="button" class="venue-clear-btn" id="req-venue-clear-btn">Clear selection</button>' : ''}
+          </div>
+        ` : ''}
+      </div>
+      <div class="filter-date-field">
+        <label>From</label>
+        <input type="date" id="req-date-from" class="filter-date" value="${filterDateFrom}">
+      </div>
+      <div class="filter-date-field">
+        <label>To</label>
+        <input type="date" id="req-date-to" class="filter-date" value="${filterDateTo}">
+      </div>
+      <button type="button" id="req-clear-filters" class="filter-funnel-btn ${activeFilterCount > 0 ? 'has-active' : ''}" title="${activeFilterCount > 0 ? `Clear ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'}` : 'Filters'}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        ${activeFilterCount > 0 ? `<span class="filter-funnel-badge">${activeFilterCount}</span>` : ''}
+      </button>
+    </div>
     <div class="requests-tabs">
+      <button class="req-tab ${filterTab === 'all' ? 'active' : ''}" data-tab="all">All</button>
       <button class="req-tab ${filterTab === 'pending' ? 'active' : ''}" data-tab="pending">
         Pending ${counts.pending > 0 ? `<span class="req-badge">${counts.pending}</span>` : ''}
       </button>
@@ -49,10 +175,45 @@ export async function render() {
     </div>
 
     ${filtered.length === 0
-      ? `<div class="empty-state"><div class="emoji">${filterTab === 'pending' ? '📭' : filterTab === 'accepted' ? '✅' : '❌'}</div>No ${filterTab} requests</div>`
+      ? `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><div style="font-weight:700;color:var(--text)">No ${filterTab === 'all' ? '' : filterTab + ' '}requests found</div><div style="font-size:13px;margin-top:4px">New requests will show up here</div></div>`
       : filtered.map(r => renderRequestCard(r, team)).join('')
     }
   `;
+
+  el.querySelector('#req-search').addEventListener('input', (e) => {
+    clearTimeout(el._searchTimeout);
+    el._searchTimeout = setTimeout(() => { filterSearch = e.target.value.trim(); render(); }, 300);
+  });
+  el.querySelector('#req-dept-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deptDropdownOpen = !deptDropdownOpen;
+    render();
+  });
+  el.querySelector('#req-venue-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    venueDropdownOpen = !venueDropdownOpen;
+    render();
+  });
+  el.querySelectorAll('.req-dept-multiselect .venue-option input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const val = e.target.value;
+      filterDepts = e.target.checked ? [...filterDepts, val] : filterDepts.filter(d => d !== val);
+      render();
+    });
+  });
+  el.querySelectorAll('.req-venue-multiselect .venue-option input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const val = e.target.value;
+      filterVenues = e.target.checked ? [...filterVenues, val] : filterVenues.filter(v => v !== val);
+      render();
+    });
+  });
+  el.querySelector('#req-dept-clear-btn')?.addEventListener('click', (e) => { e.stopPropagation(); filterDepts = []; render(); });
+  el.querySelector('#req-venue-clear-btn')?.addEventListener('click', (e) => { e.stopPropagation(); filterVenues = []; render(); });
+  el.querySelector('#req-date-from').addEventListener('change', (e) => { filterDateFrom = e.target.value; render(); });
+  el.querySelector('#req-date-to').addEventListener('change', (e) => { filterDateTo = e.target.value; render(); });
+  el.querySelector('#req-clear-filters').addEventListener('click', () => { resetReqFilters(); render(); });
+  bindReqOutsideClick();
 
   // Single delegated click handler — survives re-renders
   if (el._delegatedClick) el.removeEventListener('click', el._delegatedClick);
@@ -502,18 +663,24 @@ function openDetailModal(req, team) {
         <button class="btn-icon" id="rd-close">✕</button>
       </div>
       <div class="modal-body">
-        <div class="req-detail-row"><strong>Requested By</strong><span>${req.requested_by}${req.phone ? ' · ' + req.phone : ''}</span></div>
+        <div class="req-detail-hero">
+          <span class="req-detail-avatar">${(req.requested_by || '?').charAt(0).toUpperCase()}</span>
+          <div class="req-detail-hero-info">
+            <p class="req-detail-hero-name">${req.requested_by}</p>
+            ${req.phone ? `<p class="req-detail-hero-meta">${req.phone}</p>` : ''}
+          </div>
+          <span class="req-status-badge req-status-${req.status}">${req.status.charAt(0).toUpperCase() + req.status.slice(1)}</span>
+        </div>
         <div class="req-detail-row"><strong>Date</strong><span>${dateStr}</span></div>
         ${req.time ? `<div class="req-detail-row"><strong>Time</strong><span>${fmtTime(req.time)}</span></div>` : ''}
-        <div class="req-detail-row"><strong>Type</strong><span>${(req.shoot_type || '').replace(/,/g, ', ')}</span></div>
+        ${req.shoot_type ? `<div class="req-detail-row"><strong>Type</strong><span>${req.shoot_type.replace(/,/g, ', ')}</span></div>` : ''}
         ${req.function_name ? `<div class="req-detail-row"><strong>Function</strong><span>${req.function_name}</span></div>` : ''}
-        ${req.department ? `<div class="req-detail-row"><strong>Department</strong><span>${req.department.replace(/,/g, ', ')}</span></div>` : ''}
+        ${req.department ? `<div class="req-detail-row"><strong>Department</strong><span class="req-detail-tags">${req.department.split(',').map(d => `<span class="tag tag-dept">${d.trim()}</span>`).join('')}</span></div>` : ''}
         ${req.location ? `<div class="req-detail-row"><strong>Location</strong><span>${req.location}</span></div>` : ''}
         ${req.notes ? `<div class="req-detail-row"><strong>Notes</strong><span>${req.notes}</span></div>` : ''}
-        <div class="req-detail-row"><strong>Status</strong><span class="req-status-badge req-status-${req.status}">${req.status.charAt(0).toUpperCase() + req.status.slice(1)}</span></div>
         ${reviewer ? `<div class="req-detail-row"><strong>Reviewed By</strong><span>${reviewer} · ${reviewedAt}</span></div>` : ''}
         ${req.reject_reason ? `<div class="req-detail-row"><strong>Reject Reason</strong><span>${req.reject_reason}</span></div>` : ''}
-        <div class="req-detail-row" style="color:var(--stone);font-size:12px;">Submitted ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+        <p class="req-detail-submitted">Submitted ${new Date(req.created_at).toLocaleString('en-IN')}</p>
       </div>
       <div class="modal-footer">
         <span class="spacer"></span>

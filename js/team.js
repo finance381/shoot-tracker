@@ -29,17 +29,19 @@ export async function render() {
     el.innerHTML = `
       ${showAdmin ? `<button class="btn-primary btn-full" id="add-member-btn" style="margin-bottom:20px">+ Add Team Member</button>` : ''}
       <p class="section-title">Team members</p>
-      ${team.map(m => `
-        <div class="team-card" data-id="${m.id}">
-          <div class="team-avatar">${m.name.charAt(0).toUpperCase()}</div>
-          <div class="team-info">
-            <div class="team-name">${m.name} ${m.is_admin ? '<span class="team-admin-badge">Admin</span>' : ''}</div>
-            ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
-            <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
+      <div class="team-grid">
+        ${team.map(m => `
+          <div class="team-card" data-id="${m.id}">
+            <div class="team-avatar">${m.name.charAt(0).toUpperCase()}</div>
+            <div class="team-info">
+              <div class="team-name">${m.name} ${m.is_admin ? '<span class="team-admin-badge">Admin</span>' : ''}</div>
+              ${m.role ? `<div class="team-role">${m.role}</div>` : ''}
+              <div class="team-contact">${m.phone || ''}${m.role ? ' · ' + m.role : ''}</div>
+            </div>
+            ${showAdmin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
           </div>
-          ${showAdmin ? `<button class="btn-icon team-edit-btn" data-id="${m.id}" title="Edit">✎</button>` : ''}
-        </div>
-      `).join('')}
+        `).join('')}
+      </div>
       ${team.length === 0 ? '<div class="empty-state"><div class="emoji">👥</div>No team members yet</div>' : ''}
       ${showAdmin ? renderMastersSection() : ''}
     `;
