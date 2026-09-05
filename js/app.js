@@ -981,12 +981,18 @@ async function subscribePush({ interactive = false } = {}) {
     if (!member) return 'granted';
 
     const json = sub.toJSON();
-    await supabase.from('push_subscriptions').upsert({
+    // Check the error: a rejected write (e.g. RLS) would otherwise fail silently
+    // and the device would simply never receive anything.
+    const { error } = await supabase.from('push_subscriptions').upsert({
       member_id: member.id,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth
     }, { onConflict: 'endpoint' });
+    if (error) {
+      console.error('Push subscription could not be saved:', error);
+      return 'save-failed';
+    }
     return 'granted';
   } catch (err) {
     console.warn('Push subscription failed:', err);
@@ -1041,6 +1047,8 @@ function setupNotifBanner() {
     if (result === 'granted') {
       hide();
       window.dispatchEvent(new CustomEvent('toast', { detail: 'Notifications enabled' }));
+    } else if (result === 'save-failed') {
+      show('Could not save your device for notifications. Please tell an admin.', 'Retry');
     } else {
       refresh();
     }

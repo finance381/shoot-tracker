@@ -484,13 +484,14 @@ async function subscribePush(r) {
     }
 
     const json = sub.toJSON();
-    await supabase.from('requester_push_subs').upsert({
+    const { error } = await supabase.from('requester_push_subs').upsert({
       requester_name: r.display_name,
       requester_id: r.id,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth
     }, { onConflict: 'endpoint' });
+    if (error) console.error('Requester push subscription could not be saved:', error);
   } catch (err) {
     console.warn('Requester push failed:', err);
   }
