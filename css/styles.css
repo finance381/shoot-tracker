@@ -3055,3 +3055,48 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   outline: none;
   min-width: 0;
 }
+/* ========== NOTIFICATION BANNER ========== */
+.notif-banner {
+  position: fixed;
+  top: calc(var(--top-h) + 8px);
+  left: 12px; right: 12px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-solid, var(--card-bg));
+  border: 1px solid var(--primary);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: var(--shadow-lg);
+}
+.notif-banner-text { flex: 1; min-width: 0; }
+.notif-banner-btn {
+  flex-shrink: 0;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.notif-banner-btn:disabled { opacity: .6; }
+.notif-banner-btn.hidden { display: none !important; }
+.notif-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+@media (min-width: 1024px) {
+  .notif-banner { left: auto; right: 24px; max-width: 420px; }
+}

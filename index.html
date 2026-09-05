@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2505E4">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Shoot Tracker</title>
   <link rel="manifest" href="manifest.json">
@@ -152,6 +153,13 @@
         </button>
       </div>
     </header>
+
+    <!-- Notifications: enable prompt / iOS install hint -->
+    <div id="notif-banner" class="notif-banner hidden">
+      <span class="notif-banner-text"></span>
+      <button class="notif-banner-btn"></button>
+      <button class="notif-banner-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
 
     <!-- Page container -->
     <div id="pull-refresh" class="pull-refresh"><span>↻ Release to refresh</span></div>

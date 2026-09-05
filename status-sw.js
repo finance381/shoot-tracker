@@ -15,7 +15,10 @@ self.addEventListener('fetch', e => {
 });
 
 self.addEventListener('push', (e) => {
-  const data = e.data ? e.data.json() : {};
+  let data = {};
+  // A throw here means iOS shows nothing and may drop the subscription.
+  try { data = e.data ? e.data.json() : {}; }
+  catch { try { data = { body: e.data.text() }; } catch {} }
   e.waitUntil(
     self.registration.showNotification(data.title || '📸 Shoot Request', {
       body: data.body || '',

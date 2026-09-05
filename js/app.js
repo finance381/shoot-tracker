@@ -202,6 +202,11 @@ function showAuth() {
     newBtn.disabled = true;
     newBtn.textContent = 'Please wait…';
 
+    // Must request notification permission before any await, while the click gesture is still fresh (iOS Safari requires this)
+    if ('Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch {}
+    }
+
     try {
       await login(phone, pass);
       await initAuth();
@@ -282,6 +287,11 @@ function showAuth() {
       newReqBtn.disabled = true;
       newReqBtn.textContent = 'Logging in…';
 
+      // Must request notification permission before any await, while the click gesture is still fresh (iOS Safari requires this)
+      if ('Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch {}
+      }
+
       try {
         await loginRequester(username, password);
         showRequesterApp();
@@ -332,6 +342,7 @@ function showApp() {
     registerSW();
     setupPullToRefresh();
     subscribePush();
+    setupNotifBanner();
     setupDashboardNav();
     document.getElementById('title-home').addEventListener('click', () => navigate('dashboard'));
   }
@@ -931,12 +942,29 @@ function setupPullToRefresh() {
   });
 }
 
-async function subscribePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+// ===== PUSH NOTIFICATIONS =====
+// iOS only exposes Notification/PushManager inside a Home-Screen-installed PWA,
+// and only ever shows the permission prompt from a real user gesture.
+const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.navigator.standalone === true
+  || window.matchMedia('(display-mode: standalone)').matches;
+const pushSupported = () => 'serviceWorker' in navigator
+  && 'PushManager' in window && 'Notification' in window;
+
+async function subscribePush({ interactive = false } = {}) {
+  if (!pushSupported()) return 'unsupported';
 
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    let permission = Notification.permission;
+
+    // Never prompt outside a user gesture: iOS silently refuses and the
+    // permission is stuck on 'default' forever after.
+    if (permission === 'default') {
+      if (!interactive) return 'default';
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== 'granted') return permission;
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
@@ -950,7 +978,7 @@ async function subscribePush() {
     }
 
     const member = getMember();
-    if (!member) return;
+    if (!member) return 'granted';
 
     const json = sub.toJSON();
     await supabase.from('push_subscriptions').upsert({
@@ -959,9 +987,66 @@ async function subscribePush() {
       p256dh: json.keys.p256dh,
       auth: json.keys.auth
     }, { onConflict: 'endpoint' });
+    return 'granted';
   } catch (err) {
     console.warn('Push subscription failed:', err);
+    return 'error';
   }
+}
+
+// Banner that turns notifications on from a real tap, and tells iOS users in a
+// Safari tab why push can't work until the app is on the Home Screen.
+function setupNotifBanner() {
+  const banner = document.getElementById('notif-banner');
+  if (!banner) return;
+
+  const textEl = banner.querySelector('.notif-banner-text');
+  const actionBtn = banner.querySelector('.notif-banner-btn');
+  const dismissBtn = banner.querySelector('.notif-banner-dismiss');
+
+  const hide = () => banner.classList.add('hidden');
+  const show = (text, btnLabel) => {
+    textEl.textContent = text;
+    actionBtn.textContent = btnLabel || '';
+    actionBtn.classList.toggle('hidden', !btnLabel);
+    banner.classList.remove('hidden');
+  };
+
+  dismissBtn.addEventListener('click', () => {
+    hide();
+    try { sessionStorage.setItem('st_notif_dismissed', '1'); } catch {}
+  });
+
+  const refresh = () => {
+    try { if (sessionStorage.getItem('st_notif_dismissed')) return hide(); } catch {}
+
+    // iOS: push exists only inside an installed Home Screen app.
+    if (isIOS() && !isStandalone()) {
+      return show('To get notifications on iPhone, tap Share → "Add to Home Screen", then open the app from there.', '');
+    }
+    if (!pushSupported()) return hide();
+    if (Notification.permission === 'granted') return hide();
+    if (Notification.permission === 'denied') {
+      return show(isIOS()
+        ? 'Notifications are blocked. Turn them on in Settings → Notifications → Shoot Tracker.'
+        : 'Notifications are blocked in your browser settings.', '');
+    }
+    show('Turn on notifications to get shoot reminders.', 'Enable');
+  };
+
+  actionBtn.addEventListener('click', async () => {
+    actionBtn.disabled = true;
+    const result = await subscribePush({ interactive: true });
+    actionBtn.disabled = false;
+    if (result === 'granted') {
+      hide();
+      window.dispatchEvent(new CustomEvent('toast', { detail: 'Notifications enabled' }));
+    } else {
+      refresh();
+    }
+  });
+
+  refresh();
 }
 
 // ===== BOOT =====

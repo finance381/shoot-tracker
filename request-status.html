@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2505E4">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Request Status</title>
   <link rel="manifest" href="status-manifest.json">
@@ -158,11 +159,16 @@
     search(savedName);
   }
 
-  lookupBtn.addEventListener('click', () => {
+  lookupBtn.addEventListener('click', async () => {
     const name = nameInput.value.trim();
     if (!name) return;
     localStorage.setItem('req_name', name);
+    // Request notification permission first, while the click gesture is still fresh (iOS Safari requires this)
+    if ('Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch {}
+    }
     search(name);
+    setupPush();
   });
 
   nameInput.addEventListener('keydown', (e) => {
@@ -247,10 +253,10 @@
   async function setupPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     try {
-      const reg = await navigator.serviceWorker.register('./status-sw.js');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') return;
 
+      const reg = await navigator.serviceWorker.register('./status-sw.js');
       await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
@@ -273,7 +279,11 @@
     }
   }
 
-  setupPush();
+  // Only auto-run for returning visitors whose permission is already decided (granted/denied) —
+  // a first-time 'default' prompt needs a fresh click, handled in the lookup button above (iOS Safari requirement)
+  if ('Notification' in window && Notification.permission !== 'default') {
+    setupPush();
+  }
 </script>
 </body>
 </html>

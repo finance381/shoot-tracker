@@ -470,10 +470,11 @@ async function renderNewRequest(el, r) {
 }
 
 async function subscribePush(r) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    // Only subscribe when permission is already settled — prompting here would be
+    // outside a user gesture, which iOS refuses (leaving it stuck on 'default').
+    if (Notification.permission !== 'granted') return;
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
