@@ -911,10 +911,11 @@ function setupPullToRefresh() {
     const diff = e.touches[0].clientY - startY;
     if (diff > 30 && main.scrollTop === 0) {
       indicator.classList.add('visible');
+      e.preventDefault();
     } else {
       indicator.classList.remove('visible');
     }
-  }, { passive: true });
+  }, { passive: false });
 
   main.addEventListener('touchend', async () => {
     if (!pulling || refreshing) return;
@@ -926,6 +927,7 @@ function setupPullToRefresh() {
       indicator.classList.remove('visible');
       indicator.classList.add('refreshing');
       indicator.querySelector('span').textContent = '';
+      navigator.serviceWorker?.getRegistration().then(reg => reg?.update()).catch(() => {});
       try {
         const raceTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
         await Promise.race([pages[currentPage](), raceTimeout]);

@@ -567,10 +567,11 @@ function setupRequesterPull(container) {
     const diff = e.touches[0].clientY - startY;
     if (diff > 30 && scrollEl.scrollTop === 0) {
       indicator.classList.add('visible');
+      e.preventDefault();
     } else {
       indicator.classList.remove('visible');
     }
-  }, { passive: true });
+  }, { passive: false });
 
   scrollEl.addEventListener('touchend', async () => {
     if (!pulling) return;
@@ -579,7 +580,10 @@ function setupRequesterPull(container) {
       indicator.classList.remove('visible');
       indicator.classList.add('refreshing');
       indicator.querySelector('span').textContent = '';
-      await renderRequesterApp(container);
+      await Promise.all([
+        renderRequesterApp(container),
+        navigator.serviceWorker?.getRegistration().then(reg => reg?.update()).catch(() => {})
+      ]);
       setTimeout(() => {
         const ind = container.querySelector('#req-pull-refresh');
         if (ind) {
