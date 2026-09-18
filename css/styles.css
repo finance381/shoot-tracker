@@ -1771,7 +1771,11 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   transition: all .15s;
 }
 .stepper-node.is-done .stepper-dot { background: var(--node-color); border-color: var(--node-color); }
-.stepper-node.is-current .stepper-dot { border-color: var(--node-color); border-width: 3px; }
+.stepper-node.is-current .stepper-dot {
+  background: var(--node-color);
+  border-color: var(--node-color);
+  border-width: 3px;
+}
 .stepper-label {
   font-size: 8px;
   font-weight: 700;
@@ -3099,4 +3103,98 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 @media (min-width: 1024px) {
   .notif-banner { left: auto; right: 24px; max-width: 420px; }
+}
+/* ==========================================================================
+   PENDING DRILL-DOWN — with a status filter on, a card leads with the
+   deliverables that match it and summarises the rest.
+   ========================================================================== */
+.pending-count-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--amber-bg);
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.type-rest-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--stone);
+}
+.type-rest-note svg { color: var(--sage); flex-shrink: 0; }
+
+/* ==========================================================================
+   SHOOTS ON MOBILE — the department summary was four stacked full-width
+   cards, which pushed every actual shoot below the fold. Now a 2x2 grid
+   so all four stay visible without scrolling.
+   ========================================================================== */
+@media (max-width: 767px) {
+  .dept-summary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .dept-summary-card {
+    /* grid owns the sizing now; drop the 260px flex basis */
+    flex: initial;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+  }
+  /* stacked head — "Entertainment" + "28 shoots" will not fit side by side
+     in a half-width card */
+  .dept-summary-head {
+    display: block;
+    margin-bottom: 6px;
+  }
+  .dept-summary-name {
+    display: block;
+    font-size: 12.5px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dept-summary-total {
+    display: block;
+    font-size: 9.5px;
+    margin-top: 1px;
+  }
+  /* auto-fit: two stat columns where they fit, one on very narrow phones */
+  .dept-summary-breakdown {
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+    gap: 4px 6px;
+  }
+  .dept-summary-stat {
+    font-size: 10px;
+    gap: 4px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .dept-summary-dot { width: 5px; height: 5px; }
+
+  /* filters were eating a quarter of the screen before any content */
+  .shoots-filter-row { padding: 8px 10px; gap: 6px; }
+  /* These have a fixed height:32px, so vertical padding eats into the text box
+     and clips descenders. Give height instead, keep padding horizontal only. */
+  .shoots-filter-row .filter-select,
+  .shoots-filter-row .filter-date {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: normal;
+  }
+  .filter-date-field { gap: 4px; }
+  .time-toggle { margin: 10px 0; }
 }

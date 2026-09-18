@@ -37,7 +37,7 @@ function renderStepper(shootId, typeName, currentStatus) {
       ${STATUS_ORDER.map((st, i) => `
         ${i > 0 ? `<div class="stepper-line ${i <= idx ? 'is-done' : ''}" style="--seg-color:${STATUS_COLOR[st]}"></div>` : ''}
         <button type="button" class="stepper-node ${i < idx ? 'is-done' : i === idx ? 'is-current' : 'is-upcoming'}" style="--node-color:${STATUS_COLOR[st]}" data-to="${st}" title="${STATUS_LABEL[st]}">
-          <span class="stepper-dot">${i < idx ? CHECK_ICON : ''}</span>
+          <span class="stepper-dot">${i <= idx ? CHECK_ICON : ''}</span>
           <span class="stepper-label">${STATUS_LABEL[st].toUpperCase()}</span>
         </button>
       `).join('')}
@@ -192,6 +192,7 @@ export async function render() {
       </select>
       <select id="filter-status" class="filter-select">
         <option value="All" ${filterStatus === 'All' ? 'selected' : ''}>All Status</option>
+        <option value="__not_posted" ${filterStatus === '__not_posted' ? 'selected' : ''}>Pending (not posted)</option>
         ${STATUS_ORDER.map(s => `<option value="${s}" ${filterStatus === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
       </select>
       <div class="venue-multiselect">
@@ -393,6 +394,21 @@ function renderLocation(s) {
   return s.location || '';
 }
 
+// With a status filter on, a card should lead with the deliverables that actually
+// match it — e.g. under "Pending", show the unposted Sales Video, not the Photo
+// and Reel that are already done.
+function splitTypesByFilter(s, types) {
+  const ts = s.type_statuses || {};
+  if (filterStatus === 'All') return { shown: types, rest: [] };
+  const match = filterStatus === '__not_posted'
+    ? (t) => ts[t] !== 'Posted'
+    : (t) => ts[t] === filterStatus;
+  const shown = types.filter(match);
+  const rest = types.filter(t => !match(t));
+  // Never render an empty card: if nothing matched, fall back to everything.
+  return shown.length ? { shown, rest } : { shown: types, rest: [] };
+}
+
 function getOverallStatus(s) {
   const ts = s.type_statuses || {};
   if (Object.keys(ts).length === 0) return s.status;
@@ -538,12 +554,23 @@ function renderShootCard(s, me, lastChangeMap) {
           <div class="shoot-card-right">
             <span class="shoot-assignee">${s.external_assignee ? '' : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'}${getAssigneeName(s)}</span>
             ${s.is_impromptu ? '<span class="tag tag-impromptu">Impromptu</span>' : ''}
+            ${(() => {
+              if (filterStatus === 'All' || types.length === 0) return '';
+              const n = filterStatus === '__not_posted'
+                ? types.filter(t => ts[t] !== 'Posted').length
+                : types.filter(t => ts[t] === filterStatus).length;
+              if (!n) return '';
+              const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
+              return `<span class="pending-count-chip">${n} ${word}</span>`;
+            })()}
             <span class="shoot-card-menu-btn" title="Open shoot">⋮</span>
           </div>
         </div>
-        ${types.length > 0 ? `
+        ${types.length > 0 ? (() => {
+          const { shown, rest } = splitTypesByFilter(s, types);
+          return `
           <div class="type-status-rows">
-            ${types.map(t => {
+            ${shown.map(t => {
               const tStatus = ts[t];
               const iconMeta = TYPE_ICON_META[t] || DEFAULT_TYPE_ICON;
               const lastBy = lastChangeMap?.[`${s.id}::${t}`];
@@ -556,8 +583,14 @@ function renderShootCard(s, me, lastChangeMap) {
                 </div>
                 ${lastBy ? `<div class="type-last-editor">Last updated by <strong>${lastBy}</strong></div>` : ''}`;
             }).join('')}
-          </div>
-        ` : `
+            ${rest.length ? `
+              <div class="type-rest-note">
+                ${filterStatus === '__not_posted'
+                  ? `${CHECK_ICON}<span>${rest.join(', ')} already posted</span>`
+                  : `<span>${rest.map(t => `${t} · ${STATUS_LABEL[ts[t]]}`).join('  ·  ')}</span>`}
+              </div>` : ''}
+          </div>`;
+        })() : `
           <div class="type-status-rows">
             <div class="type-status-row">
               <span class="type-name">${s.type || '—'}</span>
