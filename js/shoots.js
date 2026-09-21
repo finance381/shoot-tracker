@@ -554,18 +554,18 @@ function renderShootCard(s, me, lastChangeMap) {
           <div class="shoot-card-right">
             <span class="shoot-assignee">${s.external_assignee ? '' : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'}${getAssigneeName(s)}</span>
             ${s.is_impromptu ? '<span class="tag tag-impromptu">Impromptu</span>' : ''}
-            ${(() => {
-              if (filterStatus === 'All' || types.length === 0) return '';
-              const n = filterStatus === '__not_posted'
-                ? types.filter(t => ts[t] !== 'Posted').length
-                : types.filter(t => ts[t] === filterStatus).length;
-              if (!n) return '';
-              const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
-              return `<span class="pending-count-chip">${n} ${word}</span>`;
-            })()}
             <span class="shoot-card-menu-btn" title="Open shoot">⋮</span>
           </div>
         </div>
+        ${(() => {
+          if (filterStatus === 'All' || types.length === 0) return '';
+          const n = filterStatus === '__not_posted'
+            ? types.filter(t => ts[t] !== 'Posted').length
+            : types.filter(t => ts[t] === filterStatus).length;
+          if (!n) return '';
+          const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
+          return `<div class="pending-count-row"><span class="pending-count-chip">${n} ${word}</span></div>`;
+        })()}
         ${types.length > 0 ? (() => {
           const { shown, rest } = splitTypesByFilter(s, types);
           return `

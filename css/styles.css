@@ -3335,6 +3335,11 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   color: var(--stone);
 }
 
+/* The pending count sits on its own line under the venue: in the header it
+   pushed the assignee and Impromptu chips wide enough to squeeze the
+   function name. */
+.pending-count-row { margin-top: 8px; }
+
 /* ==========================================================================
    TEAM — per-member tab access
    ========================================================================== */
