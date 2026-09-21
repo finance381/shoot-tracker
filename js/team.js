@@ -236,7 +236,6 @@ function openTeamModal(member = null) {
         ${isAdmin() && hasTabAccess ? `
           <div class="form-group tm-access-group">
             <label>Tab access</label>
-            <p class="tm-access-hint">Hidden from everyone unless you tick it here. Team and Reports stay admin-only.</p>
             <div class="tm-access-list">
               ${GRANTABLE_TABS.map(t => `
                 <label class="tm-access-row">

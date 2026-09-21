@@ -3334,3 +3334,64 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   font-weight: 600;
   color: var(--stone);
 }
+
+/* ==========================================================================
+   TEAM — per-member tab access
+   ========================================================================== */
+.tm-access-group { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+.tm-access-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* This row is a <label> inside .form-group, which styles labels as field
+   captions — 11px, bold, uppercase. Put it back to body text. */
+.tm-access-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* The checkbox is a .form-group input, which is styled as a full-height text
+   field: 44px tall, padded, bordered, with a glowing ring on focus. None of
+   that belongs on a checkbox. */
+.tm-access-row .tm-access-cb,
+.tm-access-row .tm-access-cb:focus {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.tm-access-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tm-access-text strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.tm-access-text em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--stone);
+  text-transform: none;
+  letter-spacing: normal;
+}
