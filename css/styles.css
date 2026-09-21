@@ -2211,20 +2211,21 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .trend-badge.trend-flat { color: var(--stone); }
 
 /* ========== REPORTS: OVERVIEW ROW (donut + top performers) ========== */
-.reports-overview-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 20px;
+/* ===== Deliverable Overview: one donut per type ===== */
+.type-overview-head { margin: 20px 0 12px; }
+.type-overview-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--stone);
+  line-height: 1.45;
+  margin-top: 3px;
 }
-.reports-overview-card {
-  flex: 1;
-  min-width: 260px;
+.type-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
-.donut-card.reports-overview-card { max-width: 420px; }
-.top-performers-card {
-  flex: 1;
-  min-width: 260px;
+.type-overview-card {
   background: var(--surface);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
@@ -2232,38 +2233,27 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: 16px;
+  min-width: 0;
 }
 @supports not (backdrop-filter: blur(1px)) {
-  .top-performers-card { background: var(--surface-solid); }
+  .type-overview-card { background: var(--surface-solid); }
 }
-.top-performer-row {
+.type-overview-body {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 0;
+  gap: 14px;
+  min-width: 0;
 }
-.top-performer-row + .top-performer-row { border-top: 1px solid var(--border); }
-.top-performer-rank {
-  width: 18px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--stone);
-  flex-shrink: 0;
-  text-align: center;
+.type-overview-svg { flex-shrink: 0; }
+.type-overview-legend { flex: 1; min-width: 0; }
+
+@media (max-width: 1023px) {
+  .type-overview-grid { grid-template-columns: 1fr; }
 }
-.top-performer-avatar {
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: var(--terracotta-soft);
-  color: var(--terracotta);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  flex-shrink: 0;
+@media (max-width: 480px) {
+  .type-overview-body { gap: 10px; }
+  .type-overview-svg { width: 82px; height: 82px; }
 }
-.top-performer-info { flex: 1; min-width: 0; }
-.top-performer-name { font-size: 13px; font-weight: 700; }
-.top-performer-meta { font-size: 11px; color: var(--stone); margin-top: 1px; }
 
 /* ========== REPORTS: SHOOT BREAKDOWN MATRIX ========== */
 .breakdown-card {
@@ -2387,7 +2377,10 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   fill: var(--espresso);
   font-family: var(--font);
 }
-.dept-pie-name { font-size: 14px; font-weight: 700; margin-top: 10px; margin-bottom: 10px; }
+.dept-pie-name { font-size: 14px; font-weight: 700; margin-top: 10px; }
+/* The ring is split by deliverable, the centre counts shoots — say which is
+   which, otherwise the legend looks like it should add up to the big number. */
+.dept-pie-sub { font-size: 11px; color: var(--stone); margin: 2px 0 10px; }
 .dept-pie-legend { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .dept-pie-legend-row {
   display: flex;

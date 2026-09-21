@@ -154,10 +154,7 @@ export async function render() {
     </div>
 
     ${renderSummaryCards(shoots, prevShoots, logs, prevLogs, filterMemberId)}
-    <div class="reports-overview-row">
-      ${renderShootOverviewDonut(shoots, logs, filterMemberId)}
-      ${renderTopPerformers(shoots, team, filterMemberId)}
-    </div>
+    ${renderTypeOverviewGrid(shoots, logs, filterMemberId)}
     ${renderDepartmentBreakdown(shoots, logs, filterMemberId)}
     ${renderMemberTable(shoots, team, logs, filterMemberId)}
     ${renderActivityByPerson(logs, filterMemberId)}
@@ -309,87 +306,89 @@ function renderSummaryCards(shoots, prevShoots, logs, prevLogs, memberId) {
   `;
 }
 
-function renderShootOverviewDonut(shoots, logs, memberId) {
-  const filtered = filterShootsForMember(shoots, logs, memberId);
-  const c = getStatusCounts(filtered);
+// One donut per deliverable type. The old single donut sliced shoots by their
+// overall stage, which is the least-advanced deliverable — so a function whose
+// Photo was posted but whose Reel was still Shot showed up only as "Shot" and
+// the Photo's progress was invisible. Splitting by type shows the real counts.
+const TYPE_OVERVIEW_META = [
+  { key: 'Photo',       label: 'Photo',       unit: 'photos' },
+  { key: 'Sales Video', label: 'Sales Video', unit: 'videos' },
+  { key: 'Reel',        label: 'Reel',        unit: 'reels'  }
+];
 
-  const STATUS_META = [
-    { key: 'Posted',  label: 'Completed', color: 'var(--sage)' },
-    { key: 'edited',  label: 'Edited',    color: 'var(--plum)' },
-    { key: 'Shot',    label: 'Shot',      color: 'var(--amber)' },
-    { key: 'Planned', label: 'Planned',   color: 'var(--blue)' }
-  ];
-  const total = c.total;
-  // Both units in one place: the donut slices shoots, but the work is tracked
-  // per deliverable, and the two totals differ.
-  const deliverables = filtered.reduce(
-    (n, s) => n + Object.keys(s.type_statuses || {}).length, 0);
-  const r = 45, C = 2 * Math.PI * r;
-  let offset = 0;
-  const segments = STATUS_META.map(m => {
-    const count = c[m.key] || 0;
-    const frac = total > 0 ? count / total : 0;
-    const dash = frac * C;
-    const seg = `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${m.color}" stroke-width="14" stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 60 60)"/>`;
-    offset += dash;
-    return seg;
-  }).join('');
-  const legend = STATUS_META.map(m => {
-    const count = c[m.key] || 0;
-    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+const OVERVIEW_STATUS_META = [
+  { key: 'Posted',  label: 'Posted',  color: 'var(--sage)' },
+  { key: 'edited',  label: 'Edited',  color: 'var(--plum)' },
+  { key: 'Shot',    label: 'Shot',    color: 'var(--amber)' },
+  { key: 'Planned', label: 'Planned', color: 'var(--blue)' }
+];
+
+function countByTypeAndStatus(shoots) {
+  const per = {};
+  TYPE_OVERVIEW_META.forEach(t => {
+    per[t.key] = { Planned: 0, Shot: 0, edited: 0, Posted: 0, total: 0 };
+  });
+  shoots.forEach(s => {
+    Object.entries(s.type_statuses || {}).forEach(([type, raw]) => {
+      const st = normStatus(raw);
+      if (!per[type] || !STATUS_ORDER.includes(st)) return;
+      per[type][st]++;
+      per[type].total++;
+    });
+  });
+  return per;
+}
+
+function renderTypeOverviewGrid(shoots, logs, memberId) {
+  const filtered = filterShootsForMember(shoots, logs, memberId);
+  const per = countByTypeAndStatus(filtered);
+  const r = 42, C = 2 * Math.PI * r;
+
+  const cards = TYPE_OVERVIEW_META.map(t => {
+    const c = per[t.key];
+    let offset = 0;
+    const segments = c.total > 0 ? OVERVIEW_STATUS_META.map(m => {
+      const dash = (c[m.key] / c.total) * C;
+      const seg = `<circle cx="50" cy="50" r="${r}" fill="none" stroke="${m.color}" stroke-width="13" stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 50 50)"/>`;
+      offset += dash;
+      return seg;
+    }).join('') : '';
+
     return `
-      <div class="donut-legend-row">
-        <span class="donut-dot" style="background:${m.color}"></span>
-        <span class="donut-legend-label">${m.label}</span>
-        <span class="donut-legend-value">${count} (${pct}%)</span>
+      <div class="type-overview-card">
+        <p class="section-title" style="margin-bottom:12px">${t.label}</p>
+        <div class="type-overview-body">
+          <svg class="type-overview-svg" viewBox="0 0 100 100" width="96" height="96">
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--sand)" stroke-width="13"/>
+            ${segments}
+            <text x="50" y="48" text-anchor="middle" class="dept-pie-value">${c.total}</text>
+            <text x="50" y="63" text-anchor="middle" class="donut-center-label">${t.unit}</text>
+          </svg>
+          <div class="type-overview-legend">
+            ${OVERVIEW_STATUS_META.map(m => {
+              const n = c[m.key];
+              const pct = c.total > 0 ? Math.round((n / c.total) * 100) : 0;
+              return `
+                <div class="donut-legend-row">
+                  <span class="donut-dot" style="background:${m.color}"></span>
+                  <span class="donut-legend-label">${m.label}</span>
+                  <span class="donut-legend-value">${n} (${pct}%)</span>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
       </div>`;
   }).join('');
 
-  return `
-    <div class="donut-card reports-overview-card">
-      <p class="section-title" style="margin-bottom:2px">Shoot Overview</p>
-      <p class="section-subtitle" style="margin:0 0 10px">Where each shoot stands right now — every shoot appears once, in its current stage only</p>
-      <div class="donut-wrap">
-        <svg class="donut-svg" viewBox="0 0 120 120" width="110" height="110">
-          <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--sand)" stroke-width="14"/>
-          ${segments}
-          <text x="60" y="56" text-anchor="middle" class="donut-center-value">${total}</text>
-          <text x="60" y="72" text-anchor="middle" class="donut-center-label">Total Shoots</text>
-        </svg>
-        <div class="donut-legend">
-          ${legend}
-          <div class="donut-legend-foot">${deliverables} deliverables across these ${total} shoot${total === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderTopPerformers(shoots, team, memberId) {
-  if (memberId !== 'All') return '';
-
-  const ranked = team.map(m => {
-    const memberShoots = shoots.filter(s => s.assignee_id === m.id);
-    const posted = memberShoots.filter(s => s.status === 'Posted').length;
-    return { name: m.name, total: memberShoots.length, posted };
-  }).filter(r => r.total > 0).sort((a, b) => b.posted - a.posted || b.total - a.total).slice(0, 5);
+  const shootCount = filtered.length;
+  const deliverables = TYPE_OVERVIEW_META.reduce((n, t) => n + per[t.key].total, 0);
 
   return `
-    <div class="top-performers-card reports-overview-card">
-      <p class="section-title" style="margin-bottom:10px">Top Performers</p>
-      ${ranked.length === 0
-        ? '<div class="empty-state" style="padding:20px 0"><div class="emoji">🏆</div>No activity this period</div>'
-        : ranked.map((r, i) => `
-          <div class="top-performer-row">
-            <span class="top-performer-rank">${i + 1}</span>
-            <span class="top-performer-avatar">${r.name.charAt(0).toUpperCase()}</span>
-            <div class="top-performer-info">
-              <div class="top-performer-name">${r.name}</div>
-              <div class="top-performer-meta">${r.total} shoot${r.total === 1 ? '' : 's'} · ${r.posted} posted</div>
-            </div>
-          </div>
-        `).join('')}
+    <div class="type-overview-head">
+      <p class="section-title" style="margin:0">Deliverable Overview</p>
+      <span class="type-overview-sub">${deliverables} deliverables across ${shootCount} shoot${shootCount === 1 ? '' : 's'} — a function with a photo, a reel and a sales video is one shoot, three deliverables</span>
     </div>
+    <div class="type-overview-grid">${cards}</div>
   `;
 }
 
@@ -449,9 +448,11 @@ function renderDepartmentPieGrid(counts) {
             <svg viewBox="0 0 100 100" width="104" height="104" class="dept-pie-svg">
               <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--sand)" stroke-width="14"/>
               ${segments}
-              <text x="50" y="55" text-anchor="middle" class="dept-pie-value">${c.shootCount}</text>
+              <text x="50" y="48" text-anchor="middle" class="dept-pie-value">${c.shootCount}</text>
+              <text x="50" y="63" text-anchor="middle" class="donut-center-label">shoots</text>
             </svg>
             <p class="dept-pie-name">${d}</p>
+            <p class="dept-pie-sub">${c.total} deliverable${c.total === 1 ? '' : 's'}</p>
             <div class="dept-pie-legend">
               ${SHOOT_TYPE_META.map(t => `
                 <div class="dept-pie-legend-row">
@@ -743,6 +744,9 @@ function computeBreakdownMatrix(filteredShoots) {
   const matrix = {};
   const columnTotals = {};
   const grandTotals = emptyBreakdownCounts();
+  // Cells count deliverables, so track the functions separately: one shoot with
+  // a photo, a reel and a sales video is one shoot, not three.
+  const shootIds = new Set();
 
   filteredShoots.forEach(s => {
     const depts = Array.isArray(s.departments) && s.departments.length ? s.departments : [NO_DEPT_LABEL];
@@ -766,9 +770,11 @@ function computeBreakdownMatrix(filteredShoots) {
         grandTotals[status]++;
         grandTotals.total++;
       });
+      shootIds.add(s.id);
     });
   });
 
+  grandTotals.shootCount = shootIds.size;
   return { matrix, columnTotals, grandTotals };
 }
 
@@ -789,7 +795,7 @@ function renderBreakdownHeader(grandTotals) {
   return `
     <div class="breakdown-header-row">
       <p class="section-title" style="margin:0">Shoot Breakdown</p>
-      <span class="breakdown-totals-line">${grandTotals.total} deliverables right now · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Editing · ${grandTotals.Posted} Posted</span>
+      <span class="breakdown-totals-line"><strong>${grandTotals.shootCount ?? 0} shoot${grandTotals.shootCount === 1 ? '' : 's'}</strong> · ${grandTotals.total} deliverables · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Editing · ${grandTotals.Posted} Posted</span>
     </div>
   `;
 }
@@ -838,7 +844,7 @@ function renderBreakdownMatrixTable(rowDepts, colTypes, matrix, columnTotals, gr
         <tfoot>
           <tr>
             <td>Column total</td>
-            ${colTypes.map(t => `<td>${(columnTotals[t] && columnTotals[t].total) || 0} shoots</td>`).join('')}
+            ${colTypes.map(t => `<td>${(columnTotals[t] && columnTotals[t].total) || 0}</td>`).join('')}
             <td>${grandTotals.total}</td>
           </tr>
         </tfoot>
