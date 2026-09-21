@@ -2,6 +2,38 @@ import { supabase } from './supabase.js';
 import { getMember } from './auth.js';
 
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
+
+// Some older rows store the value "Editing"; the app writes 'edited' and shows
+// it as "Edited". Anything that
+// is not one of STATUS_ORDER was being dropped silently: the donut skipped it
+// but still counted it in the total, so the segments never added up.
+const STATUS_ALIASES = { Editing: 'edited', Edited: 'edited' };
+const normStatus = (v) => STATUS_ALIASES[v] ?? v;
+
+// A shoot's stage is the least-advanced of its deliverables — the same rule the
+// Shoots page uses. Deriving it here keeps the two pages from disagreeing when
+// the stored status column has gone stale.
+function overallStatus(s) {
+  const ts = s.type_statuses || {};
+  const idx = Object.values(ts).map(v => STATUS_ORDER.indexOf(v)).filter(i => i >= 0);
+  return idx.length ? STATUS_ORDER[Math.min(...idx)] : s.status;
+}
+
+function normaliseShoot(s) {
+  let ts = s.type_statuses;
+  if (ts && typeof ts === 'object') {
+    ts = Object.fromEntries(Object.entries(ts).map(([k, v]) => [k, normStatus(v)]));
+  }
+  const out = { ...s, type_statuses: ts, status: normStatus(s.status) };
+  out.status = overallStatus(out);
+  return out;
+}
+
+const normaliseLog = (l) => ({
+  ...l,
+  from_status: normStatus(l.from_status),
+  to_status: normStatus(l.to_status)
+});
 const REPORTS_MEMBER_FILTER_EXCLUDE = ['Pratik', 'Pratiksha', 'Harsh', 'Kanishk'];
 let renderGen = 0;
 
@@ -59,9 +91,9 @@ export async function render() {
 
   if (myGen !== renderGen) return;
 
-  const allShoots = shootsRes.data || [];
+  const allShoots = (shootsRes.data || []).map(normaliseShoot);
   const team = teamRes.data || [];
-  const allLogs = logsRes.data || [];
+  const allLogs = (logsRes.data || []).map(normaliseLog);
 
   // Filter shoots by date range
   const shoots = allShoots.filter(s => s.date >= dateFrom && s.date <= dateTo);
@@ -178,15 +210,59 @@ const PHASE_WEIGHT = { Planned: 0, Shot: 40, edited: 75, Posted: 100 };
 
 function getShootCompletion(s) {
   const ts = s.type_statuses || {};
-  const statuses = Object.keys(ts).length > 0 ? Object.values(ts) : [s.status];
+  const statuses = (Object.keys(ts).length > 0 ? Object.values(ts) : [s.status]).map(normStatus);
   const total = statuses.reduce((sum, st) => sum + (PHASE_WEIGHT[st] || 0), 0);
   return Math.round(total / statuses.length);
 }
 
-function getStatusCounts(shoots) {
-  const counts = { Planned: 0, Shot: 0, edited: 0, Posted: 0, total: 0, avgCompletion: 0 };
+// Which stages a shoot has actually been through.
+//
+// Only 3 deliverables sit at "edited" at any moment while 144 are Posted —
+// editing is a stage work passes THROUGH, so a snapshot of the current stage
+// will always read as almost zero. The history lives in audit_log, which
+// records every transition and who made it.
+//
+// Nothing here is inferred. The stepper lets you jump straight from Shot to
+// Posted, so "it is Posted, therefore it was edited" would invent work that
+// never happened. A stage counts only if the log says it was set, or a
+// deliverable is sitting at it right now.
+function buildStageHistory(logs) {
+  const byShoot = {};
+  (logs || []).forEach(l => {
+    const to = normStatus(l.to_status);
+    if (!STATUS_ORDER.includes(to) || !l.shoot_id) return;
+    (byShoot[l.shoot_id] ||= new Set()).add(to);
+  });
+  return byShoot;
+}
+
+function getReachedCounts(shoots, history = {}) {
+  const reached = { Planned: 0, Shot: 0, edited: 0, Posted: 0 };
   shoots.forEach(s => {
-    counts[s.status] = (counts[s.status] || 0) + 1;
+    const stages = new Set(history[s.id] || []);
+    // Whatever a deliverable sits at now is a stage it has reached, logged or not.
+    Object.values(s.type_statuses || {}).forEach(v => {
+      const st = normStatus(v);
+      if (STATUS_ORDER.includes(st)) stages.add(st);
+    });
+    // Every shoot is created at Planned by both creation paths, so that one is
+    // a fact about the record rather than a guess about its history.
+    stages.add('Planned');
+    if (stages.size === 1) {
+      const st = normStatus(s.status);
+      if (STATUS_ORDER.includes(st)) stages.add(st);
+    }
+    stages.forEach(st => reached[st]++);
+  });
+  return reached;
+}
+
+function getStatusCounts(shoots) {
+  const counts = { Planned: 0, Shot: 0, edited: 0, Posted: 0, total: 0, avgCompletion: 0, unknown: 0 };
+  shoots.forEach(s => {
+    const st = normStatus(s.status);
+    if (STATUS_ORDER.includes(st)) counts[st]++;
+    else counts.unknown++;   // surfaced rather than silently lost
     counts.total++;
   });
   if (counts.total > 0) {
@@ -207,11 +283,13 @@ function renderSummaryCards(shoots, prevShoots, logs, prevLogs, memberId) {
   const prevFiltered = filterShootsForMember(prevShoots, prevLogs, memberId);
   const c = getStatusCounts(filtered);
   const p = getStatusCounts(prevFiltered);
+  const cr = getReachedCounts(filtered, buildStageHistory(logs));
+  const pr = getReachedCounts(prevFiltered, buildStageHistory(prevLogs));
 
   const cards = [
     { icon: ICONS.grid,    cls: 'stat-icon-terracotta', value: c.total,           label: 'Total Shoots',    trend: trendBadge(c.total, p.total) },
     { icon: ICONS.percent, cls: 'stat-icon-blue',        value: c.avgCompletion + '%', label: 'Avg Completion', trend: trendBadge(c.avgCompletion, p.avgCompletion) },
-    { icon: ICONS.edit,    cls: 'stat-icon-plum',        value: c.edited || 0,     label: 'In Editing',      trend: trendBadge(c.edited || 0, p.edited || 0) },
+    { icon: ICONS.edit,    cls: 'stat-icon-plum',        value: cr.edited,         label: 'Edited',     trend: trendBadge(cr.edited, pr.edited) },
     { icon: ICONS.check,   cls: 'stat-icon-sage',        value: c.Posted || 0,     label: 'Fully Posted',    trend: trendBadge(c.Posted || 0, p.Posted || 0) }
   ];
 
@@ -237,11 +315,15 @@ function renderShootOverviewDonut(shoots, logs, memberId) {
 
   const STATUS_META = [
     { key: 'Posted',  label: 'Completed', color: 'var(--sage)' },
-    { key: 'edited',  label: 'Editing',   color: 'var(--plum)' },
+    { key: 'edited',  label: 'Edited',    color: 'var(--plum)' },
     { key: 'Shot',    label: 'Shot',      color: 'var(--amber)' },
     { key: 'Planned', label: 'Planned',   color: 'var(--blue)' }
   ];
   const total = c.total;
+  // Both units in one place: the donut slices shoots, but the work is tracked
+  // per deliverable, and the two totals differ.
+  const deliverables = filtered.reduce(
+    (n, s) => n + Object.keys(s.type_statuses || {}).length, 0);
   const r = 45, C = 2 * Math.PI * r;
   let offset = 0;
   const segments = STATUS_META.map(m => {
@@ -265,7 +347,8 @@ function renderShootOverviewDonut(shoots, logs, memberId) {
 
   return `
     <div class="donut-card reports-overview-card">
-      <p class="section-title" style="margin-bottom:10px">Shoot Overview</p>
+      <p class="section-title" style="margin-bottom:2px">Shoot Overview</p>
+      <p class="section-subtitle" style="margin:0 0 10px">Where each shoot stands right now — every shoot appears once, in its current stage only</p>
       <div class="donut-wrap">
         <svg class="donut-svg" viewBox="0 0 120 120" width="110" height="110">
           <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--sand)" stroke-width="14"/>
@@ -273,7 +356,10 @@ function renderShootOverviewDonut(shoots, logs, memberId) {
           <text x="60" y="56" text-anchor="middle" class="donut-center-value">${total}</text>
           <text x="60" y="72" text-anchor="middle" class="donut-center-label">Total Shoots</text>
         </svg>
-        <div class="donut-legend">${legend}</div>
+        <div class="donut-legend">
+          ${legend}
+          <div class="donut-legend-foot">${deliverables} deliverables across these ${total} shoot${total === 1 ? '' : 's'}</div>
+        </div>
       </div>
     </div>
   `;
@@ -392,10 +478,12 @@ function renderDepartmentBreakdown(shoots, logs, memberId) {
 
 function renderMemberTable(shoots, team, logs, memberId) {
   const members = memberId === 'All' ? team : team.filter(m => m.id === memberId);
+  const history = buildStageHistory(logs);
 
   const memberRows = members.map(m => {
     const memberShoots = filterShootsForMember(shoots, logs, m.id);
     const counts = getStatusCounts(memberShoots);
+    const reached = getReachedCounts(memberShoots, history);
 
     // Turnaround: average days from shoot date to Posted (using audit_log)
     const postedLogs = logs.filter(l =>
@@ -426,9 +514,9 @@ function renderMemberTable(shoots, team, logs, memberId) {
       <tr>
         <td class="report-name-cell">${m.name}</td>
         <td>${counts.total}</td>
-        <td>${counts.Shot || 0}</td>
-        <td>${counts.edited || 0}</td>
-        <td>${counts.Posted || 0}</td>
+        <td>${reached.Shot}</td>
+        <td>${reached.edited}</td>
+        <td>${reached.Posted}</td>
         <td>${completionRate}</td>
         <td>${avgTurnaround}</td>
       </tr>
@@ -442,11 +530,14 @@ function renderMemberTable(shoots, team, logs, memberId) {
 
   // Totals row
   const allFiltered = filterShootsForMember(shoots, logs, memberId);
-  const totals = getStatusCounts(allFiltered);
+  // Must be the same measure as the member rows above, otherwise the footer
+  // reports current-stage counts under history-based column headings.
+  const totals = getReachedCounts(allFiltered, history);
+  totals.total = allFiltered.length;
 
   return `
     <p class="section-title" style="margin-top:20px">Member Breakdown</p>
-    <p class="section-subtitle">Where each member's shoots currently stand — Shot/Edited/Posted here means "how many of their shoots are AT that stage right now"</p>
+    <p class="section-subtitle">Which stages each member's shoots have actually been through, taken from the status-change log — a shoot counts under Edited only if something on it really was marked Edited</p>
     <div class="report-table-wrap">
       <table class="report-table">
         <thead>
@@ -510,9 +601,9 @@ function renderActivityByPerson(logs, memberId) {
               <tr>
                 <th>Name</th>
                 <th>Shoots Updated</th>
-                <th>Shot</th>
-                <th>Edited</th>
-                <th>Posted</th>
+                <th>Marked Shot</th>
+                <th>Marked Edited</th>
+                <th>Marked Posted</th>
               </tr>
             </thead>
             <tbody>
@@ -698,7 +789,7 @@ function renderBreakdownHeader(grandTotals) {
   return `
     <div class="breakdown-header-row">
       <p class="section-title" style="margin:0">Shoot Breakdown</p>
-      <span class="breakdown-totals-line">Total ${grandTotals.total} shoot slots · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Edited · ${grandTotals.Posted} Posted</span>
+      <span class="breakdown-totals-line">${grandTotals.total} deliverables right now · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Editing · ${grandTotals.Posted} Posted</span>
     </div>
   `;
 }
@@ -791,7 +882,11 @@ function renderBreakdownInner(filteredShoots, allShoots) {
     `;
   }
 
-  const rowDepts = breakdownDeptFilter ? [breakdownDeptFilter] : allDepts;
+  // "(No dept)" only earns a row when something is actually in it — an empty
+  // placeholder row is just noise. Shoots without a department are still
+  // counted in the totals, so nothing goes missing.
+  const rowDepts = (breakdownDeptFilter ? [breakdownDeptFilter] : allDepts)
+    .filter(d => d !== NO_DEPT_LABEL || (matrix[d] && Object.values(matrix[d]).some(c => c.total > 0)));
   const colTypes = breakdownTypeFilter ? [breakdownTypeFilter] : allTypes;
 
   return `

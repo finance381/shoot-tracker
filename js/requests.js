@@ -15,6 +15,23 @@ let outsideClickBound = false;
 
 const container = () => document.getElementById('page-requests');
 
+// Accepting a request sets deliverable statuses, so those changes belong in the
+// same log the Shoots stepper writes to — otherwise Reports cannot tell that a
+// stage was ever reached.
+async function logStatusChanges(shootId, oldTS, newTS, me) {
+  const rows = Object.keys(newTS || {})
+    .filter(t => (oldTS || {})[t] !== newTS[t])
+    .map(t => ({
+      shoot_id: shootId,
+      member_id: me?.id,
+      member_name: me?.name || 'Unknown',
+      type_name: t,
+      from_status: (oldTS || {})[t] || null,
+      to_status: newTS[t]
+    }));
+  if (rows.length) await supabase.from('audit_log').insert(rows);
+}
+
 function resetReqFilters() {
   filterSearch = '';
   filterDepts = [];
@@ -594,6 +611,7 @@ async function openAcceptModal(req, team) {
 
         if (upErr) throw upErr;
         shoot = updated;
+        await logStatusChanges(match.id, match.type_statuses, mergedTS, me);
 
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Merged into existing shoot on same date & venue!' }));
       } else {
@@ -616,6 +634,7 @@ async function openAcceptModal(req, team) {
 
         if (shootErr) throw shootErr;
         shoot = newShoot;
+        await logStatusChanges(newShoot.id, {}, type_statuses, me);
 
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot created from request!' }));
       }
