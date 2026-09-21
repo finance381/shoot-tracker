@@ -3,6 +3,7 @@ import { initAuth, getUser, getMember, login, logout, isAdmin } from './auth.js'
 import { render as renderDashboard } from './dashboard.js';
 import { render as renderCalendar } from './calendar.js';
 import { render as renderShoots, setFilters, resetFilters } from './shoots.js';
+import { render as renderYouTube } from './youtube.js';
 import { render as renderTeam } from './team.js';
 import { render as renderReports } from './reports.js';
 import { render as renderRequests } from './requests.js';
@@ -50,6 +51,7 @@ const pages = {
   dashboard: renderDashboard,
   calendar:  renderCalendar,
   shoots:    renderShoots,
+  youtube:   renderYouTube,
   team:      renderTeam,
   reports:   renderReports,
   requests:  renderRequests,
@@ -69,6 +71,30 @@ function handleDesktopSwitch(e) {
   }
 }
 desktopMQ.addEventListener('change', handleDesktopSwitch);
+
+// Team and Reports are admin-only, full stop — they cannot be handed out.
+// YouTube is hidden too, but an admin can grant it per member
+// (team_members.tab_access). Admins always see everything.
+const ADMIN_ONLY_TABS = ['team', 'reports'];
+const GRANTABLE_TABS  = ['youtube'];
+const RESTRICTED_TABS = [...ADMIN_ONLY_TABS, ...GRANTABLE_TABS];
+
+export function canSeeTab(page) {
+  if (!RESTRICTED_TABS.includes(page)) return true;
+  if (isAdmin()) return true;
+  if (ADMIN_ONLY_TABS.includes(page)) return false;
+  const access = getMember()?.tab_access;
+  return Array.isArray(access) && access.includes(page);
+}
+
+function applyTabVisibility() {
+  RESTRICTED_TABS.forEach(page => {
+    const show = canSeeTab(page) ? '' : 'none';
+    document.querySelectorAll(
+      `.nav-tab[data-page="${page}"], .sidebar-tab[data-page="${page}"]`
+    ).forEach(tab => { tab.style.display = show; });
+  });
+}
 
 // ===== INIT =====
 async function init() {
@@ -323,11 +349,7 @@ function showApp() {
   const member = getMember();
   document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
 
-  // Show/hide reports tab based on admin
-  const reportsTab = document.querySelector('.nav-tab[data-page="reports"]');
-  if (reportsTab) {
-    reportsTab.style.display = isAdmin() ? '' : 'none';
-  }
+  applyTabVisibility();
 
   if (!appSetupDone) {
     appSetupDone = true;
@@ -348,7 +370,8 @@ function showApp() {
   }
 
   const savedPage = sessionStorage.getItem('st_page');
-  navigate(savedPage && pages[savedPage] ? savedPage : 'dashboard');
+  const startPage = savedPage && pages[savedPage] && canSeeTab(savedPage) ? savedPage : 'dashboard';
+  navigate(startPage);
 
   // Also run once on load in case the user reloads on desktop while last-page was calendar
   handleDesktopSwitch(desktopMQ);
@@ -398,9 +421,6 @@ function setupNav() {
 function setupSidebarNav() {
   const sidebar = document.getElementById('desktop-sidebar');
   if (!sidebar) return;
-
-  const sidebarReportsTab = sidebar.querySelector('.sidebar-tab[data-page="reports"]');
-  if (sidebarReportsTab) sidebarReportsTab.style.display = isAdmin() ? '' : 'none';
 
   sidebar.querySelectorAll('.sidebar-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -790,13 +810,15 @@ function setupShootModal() {
       const newTS = type_statuses || {};
       const me = getMember();
       for (const t of Object.keys(newTS)) {
-        if (oldTS[t] && oldTS[t] !== newTS[t]) {
+        // A newly added deliverable has no old status; its first status is
+        // still a real change and belongs in the log.
+        if (oldTS[t] !== newTS[t]) {
           await supabase.from('audit_log').insert({
             shoot_id: editedShoot.id,
             member_id: me?.id,
             member_name: me?.name || 'Unknown',
             type_name: t,
-            from_status: oldTS[t],
+            from_status: oldTS[t] || null,
             to_status: newTS[t]
           });
         }

@@ -3198,3 +3198,139 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   .filter-date-field { gap: 4px; }
   .time-toggle { margin: 10px 0; }
 }
+
+/* Seven tabs now share the bottom bar — tighten the labels so the longer
+   ones ("Calendar", "Requests") still fit on a narrow phone. */
+@media (max-width: 767px) {
+  .nav-tab {
+    font-size: 9px;
+    letter-spacing: .02em;
+    gap: 2px;
+    padding-left: 2px;
+    padding-right: 2px;
+    min-width: 0;
+  }
+  .nav-tab span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nav-tab svg { width: 18px; height: 18px; }
+}
+
+/* ==========================================================================
+   YOUTUBE TAB — reuses the Shoots card/filter language; only the bits
+   specific to the posting state live here.
+   ========================================================================== */
+.yt-view-count {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--sand);
+  color: var(--stone);
+  font-size: 11px;
+  font-weight: 700;
+}
+.time-toggle-btn.active .yt-view-count { background: var(--primary-soft); color: var(--primary); }
+
+.tag.yt-tag-live  { background: var(--sage-bg); color: var(--sage); }
+.tag.yt-tag-ready { background: var(--blue-bg); color: var(--blue); }
+.tag.yt-tag-wait  { background: var(--sand);    color: var(--stone); }
+
+/* the sales-video row carries its own meta and the action button */
+.yt-status-row { flex-wrap: wrap; }
+.yt-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  flex: 1;
+  min-width: 0;
+  margin-left: 4px;
+}
+.yt-meta-item {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.yt-meta-item em {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--stone);
+  margin-bottom: 2px;
+}
+.yt-act {
+  padding: 9px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.yt-open {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--radius-xs);
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.yt-open:hover { background: var(--primary-soft); }
+
+.yt-modal-fn {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tint);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.yt-modal-fn-name { display: block; font-size: 15px; font-weight: 700; }
+.yt-modal-fn-date { display: block; font-size: 12px; color: var(--stone); margin-top: 2px; }
+
+/* Non-admins cannot change who posted — the field shows their own name, locked. */
+#yt-m-by-display { opacity: .7; cursor: default; }
+
+@media (max-width: 767px) {
+  /* The shared row puts .type-name at order:1, so anything left at the default
+     order:0 jumps ahead of it. Give this row's own parts explicit positions. */
+  .yt-status-row .type-icon-circle { order: 0; }
+  .yt-status-row .type-name { order: 1; }
+  /* box-sizing is border-box, so indent with padding — flex-basis:100% plus a
+     left margin would push these 34px past the card edge. */
+  .yt-row-meta {
+    order: 2;
+    flex-basis: 100%;
+    min-width: 0;
+    gap: 4px 16px;
+    margin: 6px 0 0;
+    padding: 0 0 0 34px;
+  }
+  .yt-act {
+    order: 3;
+    /* Fills the row from the 34px indent to the card edge: flex-basis excludes
+       the margin, so (100% - 34px) + 34px lands exactly on 100%. */
+    flex: 0 0 calc(100% - 34px);
+    width: auto;
+    max-width: none;
+    margin: 10px 0 0 34px;
+  }
+  /* the divider between date and venue reads as a stray mark once they wrap */
+  .shoot-card .shoot-meta-sep { display: none; }
+}
+
+/* Donut footer: the shoot count and the deliverable count are different units,
+   so both are shown rather than leaving the reader to guess which is which. */
+.donut-legend-foot {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--stone);
+}

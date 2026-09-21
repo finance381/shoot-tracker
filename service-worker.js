@@ -11,6 +11,7 @@ const SHELL_FILES = [
   './js/dashboard.js',
   './js/calendar.js',
   './js/shoots.js',
+  './js/youtube.js',
   './js/team.js',
   './js/reports.js',
   './js/requests.js',

@@ -1,6 +1,16 @@
 import { supabase } from './supabase.js';
 import { isAdmin } from './auth.js';
 
+// Only YouTube can be handed out. Team and Reports stay admin-only and are
+// deliberately not listed here.
+const GRANTABLE_TABS = [
+  { key: 'youtube', label: 'YouTube', hint: 'Mark sales videos posted on YouTube' }
+];
+
+// tab_access is added by a migration. Until it is run the column is absent,
+// so hide the section rather than letting every member save fail.
+let hasTabAccess = false;
+
 const container = () => document.getElementById('page-team');
 
 let activeMasterTab = 'shoot_type';
@@ -22,6 +32,7 @@ export async function render() {
     if (error) { el.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div>${error.message}</div>`; return; }
 
     const team = members || [];
+    hasTabAccess = team.length > 0 && 'tab_access' in team[0];
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const meInList = team.find(m => m.email === authUser?.email);
     const showAdmin = isAdmin() || meInList?.is_admin === true;
@@ -222,6 +233,22 @@ function openTeamModal(member = null) {
             </div>
           </div>
         ` : ''}
+        ${isAdmin() && hasTabAccess ? `
+          <div class="form-group tm-access-group">
+            <label>Tab access</label>
+            <p class="tm-access-hint">Hidden from everyone unless you tick it here. Team and Reports stay admin-only.</p>
+            <div class="tm-access-list">
+              ${GRANTABLE_TABS.map(t => `
+                <label class="tm-access-row">
+                  <input type="checkbox" class="tm-access-cb" value="${t.key}"
+                    ${Array.isArray(member?.tab_access) && member.tab_access.includes(t.key) ? 'checked' : ''}>
+                  <span class="tm-access-text">
+                    <strong>${t.label}</strong>
+                    <em>${t.hint}</em>
+                  </span>
+                </label>`).join('')}
+            </div>
+          </div>` : ''}
         <div id="tm-error" class="auth-error hidden"></div>
       </div>
       <div class="modal-footer">
@@ -252,13 +279,20 @@ function openTeamModal(member = null) {
       return;
     }
 
+    // Only admins see the checkboxes, so only they can change the grants.
+    const tabAccess = (isAdmin() && hasTabAccess)
+      ? [...overlay.querySelectorAll('.tm-access-cb:checked')].map(cb => cb.value)
+      : null;
+
     const saveBtn = overlay.querySelector('#tm-save');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
 
     try {
       if (isEdit) {
-        const { error } = await supabase.from('team_members').update({ name, role, phone, is_admin: role === 'Admin' }).eq('id', member.id);
+        const patch = { name, role, phone, is_admin: role === 'Admin' };
+        if (tabAccess) patch.tab_access = tabAccess;
+        const { error } = await supabase.from('team_members').update(patch).eq('id', member.id);
         if (error) throw error;
         close();
         render();
@@ -268,7 +302,8 @@ function openTeamModal(member = null) {
         const fakeEmail = phoneToEmail(phone);
 
         const { error: insertErr } = await supabase.from('team_members').insert({
-          name, role, email: fakeEmail, phone, is_admin: role === 'Admin'
+          name, role, email: fakeEmail, phone, is_admin: role === 'Admin',
+          ...(tabAccess ? { tab_access: tabAccess } : {})
         });
         if (insertErr) throw insertErr;
 
