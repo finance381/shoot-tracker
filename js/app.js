@@ -349,12 +349,22 @@ function showApp() {
   const member = getMember();
   document.getElementById('user-greeting').textContent = `Hi, ${member?.name || 'there'}`;
 
+  // Same member object drives the avatar and the menu header — no extra fetch.
+  const initial = (member?.name || '?').trim().charAt(0).toUpperCase() || '?';
+  const avatar = document.getElementById('user-avatar');
+  if (avatar) avatar.textContent = initial;
+  const menuName = document.getElementById('user-menu-name');
+  if (menuName) menuName.textContent = member?.name || '—';
+  const menuRole = document.getElementById('user-menu-role');
+  if (menuRole) menuRole.textContent = isAdmin() ? 'Admin' : (member?.role || 'Member');
+
   applyTabVisibility();
 
   if (!appSetupDone) {
     appSetupDone = true;
     setupNav();
     setupSidebarNav();
+    setupChrome();
     setupThemeToggle();
     setupFab();
     setupLogout();
@@ -457,6 +467,59 @@ function setupFab() {
   });
 }
 
+// ===== NAV DRAWER + USER MENU =====
+function setupChrome() {
+  const drawer   = document.getElementById('bottom-nav');
+  const backdrop = document.getElementById('nav-backdrop');
+  const toggle   = document.getElementById('nav-toggle');
+  const menuBtn  = document.getElementById('user-menu-btn');
+  const menu     = document.getElementById('user-menu');
+  if (!drawer || !menu) return;
+
+  const openDrawer = (open) => {
+    drawer.classList.toggle('is-open', open);
+    backdrop.classList.toggle('hidden', !open);
+    toggle?.setAttribute('aria-expanded', String(open));
+  };
+  const openMenu = (open) => {
+    menu.classList.toggle('hidden', !open);
+    menuBtn?.setAttribute('aria-expanded', String(open));
+  };
+
+  toggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDrawer(!drawer.classList.contains('is-open'));
+  });
+  document.getElementById('nav-close')?.addEventListener('click', () => openDrawer(false));
+  backdrop?.addEventListener('click', () => openDrawer(false));
+  // Picking a page should close the menu, not leave it covering the page.
+  drawer.querySelectorAll('.nav-tab').forEach(t => t.addEventListener('click', () => openDrawer(false)));
+
+  menuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openMenu(menu.classList.contains('hidden'));
+  });
+  // Theme stays open so the change is visible; the rest navigate away.
+  menu.querySelectorAll('.user-menu-item').forEach(item => {
+    if (item.id === 'theme-toggle-btn') return;
+    item.addEventListener('click', () => openMenu(false));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!menu.classList.contains('hidden') && !e.target.closest('#user-menu, #user-menu-btn')) openMenu(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    openDrawer(false);
+    openMenu(false);
+  });
+}
+
+function syncThemeLabel() {
+  const el = document.getElementById('theme-state-label');
+  if (el) el.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? 'Dark' : 'Light';
+}
+
 // ===== LOGOUT =====
 function setupLogout() {
   document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -477,6 +540,7 @@ function setupThemeToggle() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     moonIcon.classList.toggle('hidden', isDark);
     sunIcon.classList.toggle('hidden', !isDark);
+    syncThemeLabel();
   };
   syncIcons();
 

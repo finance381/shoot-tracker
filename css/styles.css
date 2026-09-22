@@ -400,23 +400,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .hub-btn:active { background: var(--terracotta-soft); }
 /* ========== BOTTOM NAV ========== */
-#bottom-nav {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--surface);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  z-index: 50;
-}
-@supports not (backdrop-filter: blur(1px)) {
-  #bottom-nav { background: var(--surface-solid); }
-}
+/* #bottom-nav keeps its id (app.js watches it for the active tab) but is now
+   a slide-out drawer — see the TOP BAR CHROME section. */
 .nav-tab {
   position: relative;
   flex: 1;
@@ -544,7 +529,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 #main-content {
   position: fixed;
   top: var(--top-h);
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   left: 0; right: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -566,7 +551,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   font-size: 11px;
   font-weight: 500;
   color: var(--stone);
-  padding: 24px 16px calc(24px + var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   margin-top: auto;
 }
 @media (min-width: 1024px) {
@@ -576,7 +561,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 /* ========== FAB ========== */
 .fab {
   position: fixed;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 20px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
   right: 16px;
   width: 56px;
   height: 56px;
@@ -1286,7 +1271,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 /* ========== TOAST ========== */
 .toast {
   position: fixed;
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--espresso);
@@ -1678,10 +1663,10 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 
 /* ========== OWN SHOOT HIGHLIGHT ========== */
-.shoot-mine {
-  background: var(--terracotta-light) !important;
-  border-left-width: 5px !important;
-}
+/* "Assigned to me" used to wash the whole card in a warm tint, which read as a
+   different kind of card rather than a marker. The thicker rail says the same
+   thing without changing the card's colour. */
+.shoot-mine { border-left-width: 6px !important; }
 
 /* ========== TYPE STATUS ROWS ========== */
 .type-status-rows {
@@ -3392,4 +3377,155 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   color: var(--stone);
   text-transform: none;
   letter-spacing: normal;
+}
+
+/* ==========================================================================
+   TOP BAR CHROME — hamburger + slide-out nav, and a single user menu
+   The seven tabs no longer fit across the bottom of a phone, so they move
+   into a drawer; the top bar's four separate icons collapse into one avatar.
+   ========================================================================== */
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nav-toggle:hover { border-color: var(--border-strong); }
+.top-titles { min-width: 0; }
+
+/* --- drawer --- */
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 20, .45);
+  z-index: 70;
+}
+.nav-drawer {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: 264px;
+  max-width: 82vw;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-solid);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-100%);
+  transition: transform .22s ease;
+  overflow: hidden;
+}
+.nav-drawer.is-open { transform: translateX(0); }
+.nav-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nav-drawer-title { flex: 1; font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.nav-drawer-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* the tabs were laid out as a bottom bar: stack them as rows instead */
+.nav-drawer .nav-tab {
+  flex: none;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.nav-drawer .nav-tab svg { width: 19px; height: 19px; }
+.nav-drawer .nav-tab.active { background: var(--primary-soft); color: var(--primary); }
+.nav-drawer .nav-tab.active::before { display: none; }
+
+/* --- user menu --- */
+.top-actions { position: relative; }
+.user-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.user-menu-btn:hover { border-color: var(--border-strong); }
+.user-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 248px;
+  z-index: 90;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  overflow: hidden;
+}
+.user-menu-head { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.user-menu-name { font-size: 14px; font-weight: 800; }
+.user-menu-role { font-size: 12px; color: var(--stone); margin-top: 2px; }
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.user-menu-item:hover { background: var(--surface-tint); }
+.user-menu-item.is-danger { color: var(--danger); }
+.user-menu-item.is-danger:hover { background: var(--danger-soft); }
+.user-menu-icon { display: inline-flex; align-items: center; color: var(--stone); flex-shrink: 0; }
+.user-menu-item.is-danger .user-menu-icon { color: var(--danger); }
+.user-menu-icon svg { width: 18px; height: 18px; }
+.user-menu-value { margin-left: auto; font-style: normal; font-size: 12px; color: var(--stone); }
+.user-menu-caret { color: var(--stone); flex-shrink: 0; }
+
+/* the desktop sidebar already lists every page, so the drawer is mobile-only */
+@media (min-width: 1024px) {
+  .nav-toggle, .nav-drawer, .nav-backdrop { display: none !important; }
 }
