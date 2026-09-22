@@ -176,7 +176,8 @@ export function openDaySheet(date, shoots, team) {
       if (assignee === '__external') show = !!s.external_assignee;
       else if (assignee !== 'All') show = s.assignee_id === assignee;
       if (show && q) {
-        const haystack = [s.client, s.location, s.outdoor_venue, s.notes, s.type, s.external_assignee, ...(s.departments || [])].filter(Boolean).join(' ').toLowerCase();
+        // Function name and notes only, same rule as the Shoots page.
+        const haystack = [s.client, s.notes].filter(Boolean).join(' ').toLowerCase();
         show = haystack.includes(q);
       }
       card.style.display = show ? '' : 'none';

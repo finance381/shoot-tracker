@@ -170,12 +170,22 @@ export async function render() {
     if (filterDateFrom && s.date < filterDateFrom) return false;
     if (filterDateTo && s.date > filterDateTo) return false;
     if (q) {
-      const hay = [s.client, renderLocation(s), r.videoStatus, memberName(r.rec?.posted_by), r.rec?.notes]
-        .filter(Boolean).join(' ').toLowerCase();
+      // Function name and notes only, same rule as the Shoots page.
+      const hay = [s.client, s.notes].filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
+
+  // Function-name matches first — same rule as the Shoots page.
+  if (q) {
+    const nameHit = (r) => (r.shoot.client || '').toLowerCase().includes(q);
+    list.sort((a, b) => {
+      const ra = nameHit(a) ? 0 : 1, rb = nameHit(b) ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      return (b.shoot.date || '').localeCompare(a.shoot.date || '');
+    });
+  }
 
   const counts = {
     all:    rows.length,

@@ -160,12 +160,10 @@ export async function render() {
     if (filterDateTo && s.date > filterDateTo) return false;
     if (filterSearch) {
       const q = filterSearch.toLowerCase();
-      const assigneeName = getAssigneeName(s).toLowerCase();
-      const haystack = [
-        s.client, s.type, s.location, s.outdoor_venue, s.notes,
-        s.status, assigneeName, s.external_assignee,
-        ...(s.departments || [])
-      ].filter(Boolean).join(' ').toLowerCase();
+      // Function name and notes only. Matching venue, type, status or assignee
+      // as well meant a search for one function pulled in every shoot that
+      // merely shared its venue.
+      const haystack = [s.client, s.notes].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     return true;
@@ -429,6 +427,10 @@ function formatDateHeading(dateStr) {
   return formatted;
 }
 
+// While searching, relevance beats chronology: a function whose NAME matches
+// should not sit below one that only mentions the word in its notes.
+const matchesName = (s, q) => (s.client || '').toLowerCase().includes(q);
+
 function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
   const grouped = {};
   filtered.forEach(s => {
@@ -463,7 +465,25 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
   }
 
   const visibleShoots = dates.flatMap(d => grouped[d]);
-  el.innerHTML = renderDeptSummary(computeDeptStatusSummary(visibleShoots)) + renderDateGroups(dates, grouped, me, lastChangeMap);
+  const q = filterSearch.trim().toLowerCase();
+  const summary = renderDeptSummary(computeDeptStatusSummary(visibleShoots));
+
+  if (q) {
+    // Flat and relevance-ordered — date headings would scatter the name matches.
+    const byDate = (a, b) => (b.date || '').localeCompare(a.date || '');
+    const nameHits = visibleShoots.filter(s => matchesName(s, q)).sort(byDate);
+    const noteHits = visibleShoots.filter(s => !matchesName(s, q)).sort(byDate);
+    const section = (label, list) => list.length ? `
+      <div class="date-group">
+        <div class="date-heading">${label}</div>
+        ${list.map(s => renderShootCard(s, me, lastChangeMap)).join('')}
+      </div>` : '';
+    el.innerHTML = summary
+      + section(`Function name · ${nameHits.length}`, nameHits)
+      + section(`In notes · ${noteHits.length}`, noteHits);
+  } else {
+    el.innerHTML = summary + renderDateGroups(dates, grouped, me, lastChangeMap);
+  }
 
   el.querySelectorAll('.shoot-card[data-id]').forEach(card => {
     card.addEventListener('click', async (e) => {
