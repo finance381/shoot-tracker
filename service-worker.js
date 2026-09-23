@@ -1,5 +1,5 @@
 // AUTO-VERSIONED — no manual bumping needed
-const APP_VERSION = 'v-1790147968';
+const APP_VERSION = 'v-1790148415';
 const CACHE_NAME = 'shoot-tracker-' + APP_VERSION;
 const SHELL_FILES = [
   './',
