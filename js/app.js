@@ -390,17 +390,19 @@ function showApp() {
 
 // ===== NAVIGATION =====
 function navigate(page, fromHistory = false) {
+  const prev = currentPage;
   currentPage = page;
   try { sessionStorage.setItem('st_page', page); } catch {}
-  // Each page becomes a history entry so the device back button walks the app
-  // instead of leaving it. Replaying a popstate must not push a new one.
-  if (!fromHistory) {
-    try {
-      // Re-selecting the page you are already on should not stack another entry.
-      if (history.state?.stPage === page) history.replaceState({ stPage: page }, '');
-      else history.pushState({ stPage: page }, '');
-    } catch {}
+  // The trail lives here, not in history: history only ever holds the root
+  // plus one guard entry, so back from Home really does leave the app.
+  if (page === 'dashboard') navStack = [];   // Home is the root; the trail restarts
+  else if (!fromHistory && prev !== page) {
+    navStack.push(prev);
+    if (navStack.length > 20) navStack.shift();
   }
+  exitArmed = false;
+  clearTimeout(exitTimer);
+  ensureGuard();
   renderGeneration++;
   const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -481,8 +483,17 @@ function setupFab() {
 // Android treats back as "leave the app", which closed the PWA from any page.
 // Back now closes whatever is open, else walks back through visited pages, and
 // only leaves from Home after a second press.
+let navStack = [];      // pages visited before the current one, newest last
 let exitArmed = false;
 let exitTimer = null;
+
+// One spare entry above the root gives back something to land on, so a press
+// reaches us instead of closing the app outright.
+function ensureGuard() {
+  try {
+    if (!history.state?.stGuard) history.pushState({ stGuard: true }, '');
+  } catch {}
+}
 
 function closeTopmostLayer() {
   const modal = [...document.querySelectorAll('.modal-overlay')].find(m => !m.classList.contains('hidden'));
@@ -509,40 +520,36 @@ function closeTopmostLayer() {
 }
 
 function setupBackButton() {
-  // Seed an entry so the very first back has something of ours to land on.
-  try { history.replaceState({ stPage: currentPage }, ''); } catch {}
+  try { history.replaceState({ stRoot: true }, ''); } catch {}
+  ensureGuard();
 
-  window.addEventListener('popstate', (e) => {
+  window.addEventListener('popstate', () => {
     if (closeTopmostLayer()) {
-      // The layer ate the press; keep our place in history.
-      try { history.pushState({ stPage: currentPage }, ''); } catch {}
+      // The layer ate the press; take our place back.
+      ensureGuard();
       return;
     }
 
-    const page = e.state?.stPage;
-    if (page && pages[page] && canSeeTab(page)) {
-      navigate(page, true);
-      exitArmed = false;
-      return;
-    }
-
-    // Out of our own entries. Anywhere but Home, fall back to Home rather
-    // than dropping the user out of the app.
+    // Home is where back stops, whether we walked here or the user tapped it.
     if (currentPage !== 'dashboard') {
-      try { history.pushState({ stPage: 'dashboard' }, ''); } catch {}
-      navigate('dashboard', true);
-      exitArmed = false;
+      // Walk the trail we kept ourselves, else fall back to Home.
+      const page = navStack.pop();
+      if (page && pages[page] && canSeeTab(page)) navigate(page, true);
+      else navigate('dashboard', true);
       return;
     }
 
-    // On Home — this press would close the app.
-    if (exitArmed) return;   // let it through
+    if (exitArmed) return;   // already prompted; let this press through
+
+    // On Home, so this press would close the app.
+    // Deliberately skip ensureGuard: we now sit on the root, and the next
+    // press falls off the end and lets the app close.
     exitArmed = true;
-    try { history.pushState({ stPage: currentPage }, ''); } catch {}
     window.dispatchEvent(new CustomEvent('toast', { detail: 'Press back again to exit' }));
     clearTimeout(exitTimer);
-    // Stay armed as long as the toast is on screen (setupToast hides at 2500ms).
-    exitTimer = setTimeout(() => { exitArmed = false; }, 2500);
+    // Once the toast is gone (setupToast hides it at 2500ms), put the guard
+    // back so a later press is caught again instead of exiting silently.
+    exitTimer = setTimeout(() => { exitArmed = false; ensureGuard(); }, 2500);
   });
 }
 
