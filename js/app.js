@@ -487,27 +487,41 @@ let navStack = [];      // pages visited before the current one, newest last
 let exitArmed = false;
 let exitTimer = null;
 
-// One spare entry above the root gives back something to land on, so a press
-// reaches us instead of closing the app outright.
-//
-// Chrome discards entries a page adds before the user has touched it — back
-// skips straight over them and leaves the app, which is why the guard pushed
-// at startup did nothing. So we push nothing until the first real interaction.
-let interacted = false;
+// Add ?backdebug=1 to the URL to see what back is actually doing on the
+// device. Off by default and draws nothing, so normal use is untouched.
+const BACK_DEBUG = (() => {
+  try { return new URLSearchParams(location.search).get('backdebug') === '1'; }
+  catch { return false; }
+})();
+let backLogEl = null;
 
-function ensureGuard() {
-  if (!interacted) return;
-  try {
-    if (!history.state?.stGuard) history.pushState({ stGuard: true }, '');
-  } catch {}
+function backLog(what, detail) {
+  if (!BACK_DEBUG) return;
+  if (!backLogEl) {
+    backLogEl = document.createElement('pre');
+    backLogEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;margin:0;max-height:38vh;overflow:auto;background:#000;color:#0f0;font:11px/1.35 monospace;padding:6px;white-space:pre-wrap';
+    document.body.appendChild(backLogEl);
+    backLogEl.textContent = `ua=${navigator.userAgent}\nstandalone=${matchMedia('(display-mode: standalone)').matches}\n`;
+  }
+  backLogEl.textContent += `${what}: ${detail}\n`;
+  backLogEl.scrollTop = backLogEl.scrollHeight;
 }
 
-// A touch only counts as a gesture once it ENDS — pushing on touchstart or
-// pointerdown still reads as unsolicited, which is why the guard kept being
-// skipped. Re-run on every release so a guard back walked over comes straight
-// back, and so a tap cancels a pending exit prompt.
-function markInteracted() {
-  interacted = true;
+// One spare entry above the root gives back something to land on, so a press
+// reaches us instead of closing the app outright. It has to exist from the
+// very first press — waiting for a tap meant back taken straight after launch
+// found nothing and left the app.
+function ensureGuard() {
+  try {
+    if (history.state?.stGuard) return;
+    history.pushState({ stGuard: true }, '');
+    backLog('guard', history.state?.stGuard ? 'placed' : 'FAILED TO PLACE');
+  } catch (e) { backLog('guard threw', e.message); }
+}
+
+// Every release re-places a guard a back press consumed, and a tap means the
+// user is not trying to leave, so it clears a pending exit prompt.
+function onInteraction() {
   exitArmed = false;
   clearTimeout(exitTimer);
   ensureGuard();
@@ -539,13 +553,16 @@ function closeTopmostLayer() {
 
 function setupBackButton() {
   try { history.replaceState({ stRoot: true }, ''); } catch {}
+  backLog('setup', 'len=' + history.length);
+  ensureGuard();
   // Capture phase, so we still see the tap even if a handler stops it.
-  document.addEventListener('click', markInteracted, true);
-  document.addEventListener('touchend', markInteracted, { capture: true, passive: true });
-  document.addEventListener('pointerup', markInteracted, true);
-  document.addEventListener('keyup', markInteracted, true);
+  document.addEventListener('click', onInteraction, true);
+  document.addEventListener('touchend', onInteraction, { capture: true, passive: true });
+  document.addEventListener('pointerup', onInteraction, true);
+  document.addEventListener('keyup', onInteraction, true);
 
   window.addEventListener('popstate', () => {
+    backLog('back', 'page=' + currentPage + ' state=' + JSON.stringify(history.state) + ' trail=' + navStack.join(','));
     if (closeTopmostLayer()) {
       // The layer ate the press; take our place back.
       ensureGuard();
@@ -567,6 +584,7 @@ function setupBackButton() {
     // Deliberately skip ensureGuard: we now sit on the root, and the next
     // press falls off the end and lets the app close.
     exitArmed = true;
+    backLog('toast', 'armed');
     window.dispatchEvent(new CustomEvent('toast', { detail: 'Press back again to exit' }));
     clearTimeout(exitTimer);
     // Once the toast is gone (setupToast hides it at 2500ms), put the guard
