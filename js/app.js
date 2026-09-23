@@ -502,9 +502,14 @@ function ensureGuard() {
   } catch {}
 }
 
+// A touch only counts as a gesture once it ENDS — pushing on touchstart or
+// pointerdown still reads as unsolicited, which is why the guard kept being
+// skipped. Re-run on every release so a guard back walked over comes straight
+// back, and so a tap cancels a pending exit prompt.
 function markInteracted() {
-  if (interacted) return;
   interacted = true;
+  exitArmed = false;
+  clearTimeout(exitTimer);
   ensureGuard();
 }
 
@@ -535,9 +540,10 @@ function closeTopmostLayer() {
 function setupBackButton() {
   try { history.replaceState({ stRoot: true }, ''); } catch {}
   // Capture phase, so we still see the tap even if a handler stops it.
-  document.addEventListener('pointerdown', markInteracted, true);
-  document.addEventListener('touchstart', markInteracted, { capture: true, passive: true });
-  document.addEventListener('keydown', markInteracted, true);
+  document.addEventListener('click', markInteracted, true);
+  document.addEventListener('touchend', markInteracted, { capture: true, passive: true });
+  document.addEventListener('pointerup', markInteracted, true);
+  document.addEventListener('keyup', markInteracted, true);
 
   window.addEventListener('popstate', () => {
     if (closeTopmostLayer()) {
