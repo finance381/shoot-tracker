@@ -365,6 +365,7 @@ function showApp() {
     setupNav();
     setupSidebarNav();
     setupChrome();
+    setupBackButton();
     setupThemeToggle();
     setupFab();
     setupLogout();
@@ -388,9 +389,18 @@ function showApp() {
 }
 
 // ===== NAVIGATION =====
-function navigate(page) {
+function navigate(page, fromHistory = false) {
   currentPage = page;
   try { sessionStorage.setItem('st_page', page); } catch {}
+  // Each page becomes a history entry so the device back button walks the app
+  // instead of leaving it. Replaying a popstate must not push a new one.
+  if (!fromHistory) {
+    try {
+      // Re-selecting the page you are already on should not stack another entry.
+      if (history.state?.stPage === page) history.replaceState({ stPage: page }, '');
+      else history.pushState({ stPage: page }, '');
+    } catch {}
+  }
   renderGeneration++;
   const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -464,6 +474,75 @@ function setupDashboardNav() {
 function setupFab() {
   document.getElementById('fab').addEventListener('click', () => {
     window.dispatchEvent(new CustomEvent('new-shoot', { detail: {} }));
+  });
+}
+
+// ===== BACK BUTTON =====
+// Android treats back as "leave the app", which closed the PWA from any page.
+// Back now closes whatever is open, else walks back through visited pages, and
+// only leaves from Home after a second press.
+let exitArmed = false;
+let exitTimer = null;
+
+function closeTopmostLayer() {
+  const modal = [...document.querySelectorAll('.modal-overlay')].find(m => !m.classList.contains('hidden'));
+  if (modal) {
+    // Prefer the modal's own close button so its cleanup still runs; fall back
+    // to hiding the markup-level modal or discarding a generated one.
+    const closer = modal.querySelector('[id$="-close"], [id$="-cancel"], #yt-x, #modal-close');
+    if (closer) closer.click();
+    else if (modal.id) modal.classList.add('hidden');
+    else modal.remove();
+    return true;
+  }
+  const drawer = document.getElementById('bottom-nav');
+  if (drawer?.classList.contains('is-open')) {
+    document.getElementById('nav-close')?.click();
+    return true;
+  }
+  const menu = document.getElementById('user-menu');
+  if (menu && !menu.classList.contains('hidden')) {
+    menu.classList.add('hidden');
+    return true;
+  }
+  return false;
+}
+
+function setupBackButton() {
+  // Seed an entry so the very first back has something of ours to land on.
+  try { history.replaceState({ stPage: currentPage }, ''); } catch {}
+
+  window.addEventListener('popstate', (e) => {
+    if (closeTopmostLayer()) {
+      // The layer ate the press; keep our place in history.
+      try { history.pushState({ stPage: currentPage }, ''); } catch {}
+      return;
+    }
+
+    const page = e.state?.stPage;
+    if (page && pages[page] && canSeeTab(page)) {
+      navigate(page, true);
+      exitArmed = false;
+      return;
+    }
+
+    // Out of our own entries. Anywhere but Home, fall back to Home rather
+    // than dropping the user out of the app.
+    if (currentPage !== 'dashboard') {
+      try { history.pushState({ stPage: 'dashboard' }, ''); } catch {}
+      navigate('dashboard', true);
+      exitArmed = false;
+      return;
+    }
+
+    // On Home — this press would close the app.
+    if (exitArmed) return;   // let it through
+    exitArmed = true;
+    try { history.pushState({ stPage: currentPage }, ''); } catch {}
+    window.dispatchEvent(new CustomEvent('toast', { detail: 'Press back again to exit' }));
+    clearTimeout(exitTimer);
+    // Stay armed as long as the toast is on screen (setupToast hides at 2500ms).
+    exitTimer = setTimeout(() => { exitArmed = false; }, 2500);
   });
 }
 

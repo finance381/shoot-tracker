@@ -99,21 +99,21 @@ export async function render() {
           <div class="stat-label">Pending post</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="photo">
         <div class="stat-icon stat-icon-sage"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
         <div class="stat-body">
           <div class="stat-value">${postedByType['Photo']}</div>
           <div class="stat-label">Photos posted</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="reel">
         <div class="stat-icon stat-icon-plum"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/><line x1="2" y1="8" x2="7" y2="8"/><line x1="2" y1="16" x2="7" y2="16"/><line x1="17" y1="8" x2="22" y2="8"/><line x1="17" y1="16" x2="22" y2="16"/></svg></div>
         <div class="stat-body">
           <div class="stat-value">${postedByType['Reel']}</div>
           <div class="stat-label">Reels posted</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-clickable" data-action="video">
         <div class="stat-icon stat-icon-blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg></div>
         <div class="stat-body">
           <div class="stat-value">${postedByType['Sales Video']}</div>
@@ -173,6 +173,12 @@ export async function render() {
         filters = { dateFrom: today, dateTo: weekEnd };
       } else if (action === 'pending') {
         filters = { status: '__not_posted' };
+      } else if (action === 'photo') {
+        filters = { type: 'Photo', status: 'Posted' };
+      } else if (action === 'reel') {
+        filters = { type: 'Reel', status: 'Posted' };
+      } else if (action === 'video') {
+        filters = { type: 'Sales Video', status: 'Posted' };
       }
       // 'all' = no filters
 

@@ -46,9 +46,11 @@ function renderStepper(shootId, typeName, currentStatus) {
 }
 
 const DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
+const SHOOT_TYPES = ['Photo', 'Reel', 'Sales Video'];
 
 let filterMember = 'All';
 let filterStatus = 'All';
+let filterType = 'All';
 let filterVenues = [];
 let filterDepts = [];
 let filterDateFrom = '';
@@ -64,7 +66,7 @@ let venueCache = [];
 let renderGen = 0;
 
 function saveFilters() {
-  try { sessionStorage.setItem('st_filters', JSON.stringify({ filterMember, filterStatus, filterVenues, filterDepts, filterDateFrom, filterDateTo, filterSearch, filterDateDir })); } catch {}
+  try { sessionStorage.setItem('st_filters', JSON.stringify({ filterMember, filterStatus, filterType, filterVenues, filterDepts, filterDateFrom, filterDateTo, filterSearch, filterDateDir })); } catch {}
 }
 function restoreFilters() {
   try {
@@ -72,6 +74,7 @@ function restoreFilters() {
     if (!saved) return;
     filterMember = saved.filterMember || 'All';
     filterStatus = saved.filterStatus || 'All';
+    filterType = SHOOT_TYPES.includes(saved.filterType) ? saved.filterType : 'All';
     filterVenues = Array.isArray(saved.filterVenues) ? saved.filterVenues : [];
     filterDepts = Array.isArray(saved.filterDepts) ? saved.filterDepts : [];
     filterDateFrom = saved.filterDateFrom || '';
@@ -88,6 +91,7 @@ const container = () => document.getElementById('page-shoots');
 export function setFilters(filters = {}) {
   if (filters.member !== undefined) filterMember = filters.member;
   if (filters.status !== undefined) filterStatus = filters.status;
+  if (filters.type !== undefined) filterType = filters.type;
   if (filters.venue !== undefined) filterVenues = Array.isArray(filters.venue) ? filters.venue : [filters.venue];
   if (filters.dateFrom !== undefined) filterDateFrom = filters.dateFrom;
   if (filters.dateTo !== undefined) filterDateTo = filters.dateTo;
@@ -98,6 +102,7 @@ export function setFilters(filters = {}) {
 export function resetFilters() {
   filterMember = 'All';
   filterStatus = 'All';
+  filterType = 'All';
   filterVenues = [];
   filterDepts = [];
   filterDateFrom = '';
@@ -139,7 +144,17 @@ export async function render() {
 
   const filtered = shoots.filter(s => {
     if (filterMember !== 'All' && s.assignee_id !== filterMember) return false;
-    if (filterStatus === '__not_posted') {
+    // With a type chosen, status applies to THAT deliverable — "Photos posted"
+    // means the photo is posted, not that the shoot has some posted thing.
+    if (filterType !== 'All') {
+      const ts = s.type_statuses || {};
+      if (!(filterType in ts)) return false;
+      if (filterStatus === '__not_posted') {
+        if (ts[filterType] === 'Posted') return false;
+      } else if (filterStatus !== 'All' && ts[filterType] !== filterStatus) {
+        return false;
+      }
+    } else if (filterStatus === '__not_posted') {
       if (s.status === 'Posted') return false;
     } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
@@ -172,6 +187,7 @@ export async function render() {
   const activeFilterCount = [
     filterMember !== 'All',
     filterStatus !== 'All',
+    filterType !== 'All',
     filterVenues.length > 0,
     filterDepts.length > 0,
     filterDateFrom || filterDateTo,
@@ -192,6 +208,10 @@ export async function render() {
         <option value="All" ${filterStatus === 'All' ? 'selected' : ''}>All Status</option>
         <option value="__not_posted" ${filterStatus === '__not_posted' ? 'selected' : ''}>Pending (not posted)</option>
         ${STATUS_ORDER.map(s => `<option value="${s}" ${filterStatus === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+      </select>
+      <select id="filter-type" class="filter-select">
+        <option value="All" ${filterType === 'All' ? 'selected' : ''}>All Types</option>
+        ${SHOOT_TYPES.map(t => `<option value="${t}" ${filterType === t ? 'selected' : ''}>${t}</option>`).join('')}
       </select>
       <div class="venue-multiselect">
         <button type="button" id="filter-venue-btn" class="filter-select venue-select-btn">
@@ -259,6 +279,7 @@ export async function render() {
   });
   el.querySelector('#filter-assignee').addEventListener('change', (e) => { filterMember = e.target.value; render(); });
   el.querySelector('#filter-status').addEventListener('change', (e) => { filterStatus = e.target.value; render(); });
+  el.querySelector('#filter-type').addEventListener('change', (e) => { filterType = e.target.value; render(); });
   el.querySelector('#filter-venue-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     venueDropdownOpen = !venueDropdownOpen;
@@ -397,6 +418,10 @@ function renderLocation(s) {
 // and Reel that are already done.
 function splitTypesByFilter(s, types) {
   const ts = s.type_statuses || {};
+  // A chosen type is the most specific thing the user asked for, so lead with it.
+  if (filterType !== 'All') {
+    return { shown: types.filter(t => t === filterType), rest: types.filter(t => t !== filterType) };
+  }
   if (filterStatus === 'All') return { shown: types, rest: [] };
   const match = filterStatus === '__not_posted'
     ? (t) => ts[t] !== 'Posted'
