@@ -489,10 +489,23 @@ let exitTimer = null;
 
 // One spare entry above the root gives back something to land on, so a press
 // reaches us instead of closing the app outright.
+//
+// Chrome discards entries a page adds before the user has touched it — back
+// skips straight over them and leaves the app, which is why the guard pushed
+// at startup did nothing. So we push nothing until the first real interaction.
+let interacted = false;
+
 function ensureGuard() {
+  if (!interacted) return;
   try {
     if (!history.state?.stGuard) history.pushState({ stGuard: true }, '');
   } catch {}
+}
+
+function markInteracted() {
+  if (interacted) return;
+  interacted = true;
+  ensureGuard();
 }
 
 function closeTopmostLayer() {
@@ -521,7 +534,10 @@ function closeTopmostLayer() {
 
 function setupBackButton() {
   try { history.replaceState({ stRoot: true }, ''); } catch {}
-  ensureGuard();
+  // Capture phase, so we still see the tap even if a handler stops it.
+  document.addEventListener('pointerdown', markInteracted, true);
+  document.addEventListener('touchstart', markInteracted, { capture: true, passive: true });
+  document.addEventListener('keydown', markInteracted, true);
 
   window.addEventListener('popstate', () => {
     if (closeTopmostLayer()) {
