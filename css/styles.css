@@ -2808,7 +2808,9 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 }
 .req-app-tab {
   flex: 1;
-  padding: 10px;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 10px 6px;
   border: none;
   border-radius: var(--radius-sm);
   background: var(--surface-tint);
@@ -2824,6 +2826,46 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   color: #fff;
   box-shadow: 0 4px 14px var(--primary-soft);
 }
+/* Requester calendar — same grid as the admin page, read only */
+.req-cal-wrap {
+  /* .cal-grid centres itself at 460px, so the page padding is all it needs. */
+  padding-top: 4px;
+}
+.req-cal-wrap .cal-nav {
+  max-width: 460px;
+  margin: 0 auto 16px;
+}
+.req-day-panel {
+  /* The grid stays a calendar-sized 460px, but the day's shoots read like the
+     request cards do and take the full page width. */
+  margin-top: 18px;
+}
+.req-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.req-day-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stone);
+}
+.req-cal-note {
+  margin: 16px auto 0;
+  max-width: 460px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--stone);
+  text-align: center;
+}
+/* Nothing behind these cards to open, so do not invite a tap. */
+.day-shoot-card.is-readonly { cursor: default; }
+.day-shoot-card.is-readonly:active { transform: none; }
+
 .req-app-content {
   padding: 16px;
 }

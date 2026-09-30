@@ -3,7 +3,7 @@ import { supabase } from './supabase.js';
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
 let requester = null;
-let activeTab = 'requests';
+let activeTab = 'calendar';   // what a requester lands on after logging in
 
 export function getRequester() {
   if (requester) return requester;
@@ -51,6 +51,7 @@ export async function renderRequesterApp(container) {
     </header>
 
     <div class="req-app-tabs">
+      <button class="req-app-tab ${activeTab === 'calendar' ? 'active' : ''}" data-tab="calendar">Calendar</button>
       <button class="req-app-tab ${activeTab === 'requests' ? 'active' : ''}" data-tab="requests">My Requests</button>
       <button class="req-app-tab ${activeTab === 'new' ? 'active' : ''}" data-tab="new">+ New Request</button>
     </div>
@@ -73,26 +74,22 @@ export async function renderRequesterApp(container) {
       // Only re-render content, not entire app
       container.querySelectorAll('.req-app-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const content = container.querySelector('#req-app-content');
-      if (activeTab === 'requests') {
-        await renderMyRequests(content, getRequester());
-      } else {
-        await renderNewRequest(content, getRequester());
-      }
+      await renderTab(container.querySelector('#req-app-content'), getRequester());
     });
   });
 
-  const content = container.querySelector('#req-app-content');
-  if (activeTab === 'requests') {
-    await renderMyRequests(content, r);
-  } else {
-    await renderNewRequest(content, r);
-  }
+  await renderTab(container.querySelector('#req-app-content'), r);
 
   if (!container._pushDone) {
     container._pushDone = true;
     subscribePush(r);
   }
+}
+
+function renderTab(el, r) {
+  if (activeTab === 'calendar') return renderRequesterCalendar(el);
+  if (activeTab === 'new') return renderNewRequest(el, r);
+  return renderMyRequests(el, r);
 }
 
 async function renderMyRequests(el, r) {
@@ -467,6 +464,145 @@ async function renderNewRequest(el, r) {
       btn.textContent = 'Submit Request';
     }
   });
+}
+
+// ===== CALENDAR (read-only) =====
+// Same month grid and day sheet the admin app draws, minus every way in to
+// editing: no add button, and the cards do not open a shoot.
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CAL_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+let calMonth = new Date().getMonth();
+let calYear = new Date().getFullYear();
+let calSelected = null;   // the day whose shoots are listed under the grid
+
+async function renderRequesterCalendar(el) {
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:#9C8E80">Loading…</div>';
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const mm = String(calMonth + 1).padStart(2, '0');
+  const startDate = `${calYear}-${mm}-01`;
+  const endDate = `${calYear}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
+
+  const [shootsRes, teamRes] = await Promise.all([
+    supabase.from('shoots').select('*').gte('date', startDate).lte('date', endDate),
+    supabase.from('team_members').select('id, name')
+  ]);
+
+  // A later month tap may have landed while this one was fetching.
+  if (activeTab !== 'calendar') return;
+
+  const all = shootsRes.data || [];
+  const team = teamRes.data || [];
+  const startDay = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+  const today = new Date().toISOString().slice(0, 10);
+
+  let cells = '';
+  for (let i = 0; i < startDay; i++) cells += '<div class="cal-cell empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${mm}-${String(d).padStart(2, '0')}`;
+    const dayS = all.filter(s => s.date === dateStr);
+    const isToday = dateStr === today ? ' today' : '';
+    const dots = dayS.slice(0, 3).map(s => `<div class="cal-dot dot-${s.status}"></div>`).join('');
+    const overflow = dayS.length > 3 ? `<span class="cal-overflow">+${dayS.length - 3}</span>` : '';
+
+    cells += `
+      <div class="cal-cell${isToday}${dayS.length > 0 ? ' has-shoots' : ''}" data-date="${dateStr}">
+        <span class="cal-date">${d}</span>
+        <div class="cal-dots">${dots}${overflow}</div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="req-cal-wrap">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" id="rcal-prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <span class="cal-month-label">${CAL_MONTHS[calMonth]} ${calYear}</span>
+        <button class="cal-nav-btn" id="rcal-next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="cal-grid">
+        ${CAL_DAYS.map(d => `<div class="cal-day-header">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div id="rcal-day" class="req-day-panel"></div>
+    </div>
+  `;
+
+  el.querySelector('#rcal-prev').addEventListener('click', () => {
+    if (calMonth === 0) { calMonth = 11; calYear--; } else calMonth--;
+    calSelected = null;
+    renderRequesterCalendar(el);
+  });
+  el.querySelector('#rcal-next').addEventListener('click', () => {
+    if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++;
+    calSelected = null;
+    renderRequesterCalendar(el);
+  });
+
+  const panel = el.querySelector('#rcal-day');
+
+  el.querySelectorAll('.cal-cell:not(.empty)').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const date = cell.dataset.date;
+      // Tapping the open day again closes it, so the grid can be seen whole.
+      calSelected = calSelected === date ? null : date;
+      el.querySelectorAll('.cal-cell').forEach(c => c.classList.toggle('selected', c.dataset.date === calSelected));
+      renderDayPanel(panel, all, team);
+    });
+  });
+
+  el.querySelectorAll('.cal-cell').forEach(c => c.classList.toggle('selected', !!calSelected && c.dataset.date === calSelected));
+  renderDayPanel(panel, all, team);
+}
+
+// The day's shoots live under the grid rather than in a sheet over it, so the
+// requester keeps sight of the month while reading a day.
+function renderDayPanel(panel, all, team) {
+  if (!calSelected) {
+    panel.innerHTML = `<p class="req-cal-note">Tap a day to see what's scheduled</p>`;
+    return;
+  }
+
+  const shoots = all.filter(s => s.date === calSelected);
+  const heading = new Date(calSelected + 'T00:00:00')
+    .toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  if (!shoots.length) {
+    panel.innerHTML = `
+      <div class="req-day-head">${heading}</div>
+      <p class="req-cal-note">Nothing scheduled for this day</p>`;
+    return;
+  }
+
+  const assigneeName = (s) => s.external_assignee ? '📷 ' + s.external_assignee
+    : (team.find(t => t.id === s.assignee_id)?.name || '—');
+
+  panel.innerHTML = `
+    <div class="req-day-head">${heading}<span class="req-day-count">${shoots.length} ${shoots.length === 1 ? 'shoot' : 'shoots'}</span></div>
+    ${shoots.map(s => {
+      const ts = s.type_statuses || {};
+      const types = Object.keys(ts).length > 0
+        ? Object.entries(ts).map(([t, st]) => `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`).join('')
+        : (s.type || '').split(',').filter(Boolean).map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+      const loc = s.location_type === 'outdoor' ? (s.outdoor_venue || 'Outdoor') : (s.location || '');
+      return `
+        <div class="day-shoot-card border-${s.status} is-readonly">
+          <div class="day-shoot-top">
+            <div>
+              <div class="shoot-title">${s.client || 'No function'}</div>
+              <div class="shoot-meta">${s.time ? fmtTime(s.time) : 'No time'}${loc ? ' · ' + loc : ''}</div>
+            </div>
+            <span class="shoot-assignee">${assigneeName(s)}</span>
+          </div>
+          <div class="tag-row" style="margin-top:6px">
+            ${types}
+            ${s.is_impromptu ? '<span class="tag tag-impromptu">Impromptu</span>' : ''}
+            ${s.departments?.length ? s.departments.map(dd => `<span class="tag tag-dept">${dd}</span>`).join('') : ''}
+          </div>
+        </div>`;
+    }).join('')}
+  `;
 }
 
 async function subscribePush(r) {
