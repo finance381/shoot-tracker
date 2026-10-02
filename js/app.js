@@ -8,6 +8,7 @@ import { render as renderTeam } from './team.js';
 import { render as renderReports } from './reports.js';
 import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
+import { assigneeIds, assigneeLabel } from './assignees.js';
 import { getRequester, loginRequester, logoutRequester, renderRequesterApp } from './requester-view.js';
 
 // Timeout wrapper for any async operation
@@ -388,6 +389,30 @@ function showApp() {
   handleDesktopSwitch(desktopMQ);
 }
 
+// ===== MULTI-PICK DROPDOWN =====
+function openMultiSelect(wrap) {
+  wrap.classList.add('is-open');
+  wrap.querySelector('.ms-menu')?.classList.remove('hidden');
+  wrap.querySelector('.ms-trigger')?.setAttribute('aria-expanded', 'true');
+}
+
+function closeMultiSelect(wrap) {
+  wrap.classList.remove('is-open');
+  wrap.querySelector('.ms-menu')?.classList.add('hidden');
+  wrap.querySelector('.ms-trigger')?.setAttribute('aria-expanded', 'false');
+}
+
+function closeOpenMultiSelect(exceptInside) {
+  const wrap = document.querySelector('.ms-wrap.is-open');
+  if (!wrap || (exceptInside && wrap.contains(exceptInside))) return false;
+  closeMultiSelect(wrap);
+  return true;
+}
+
+// Registered once, so reopening the shoot modal cannot stack these up.
+document.addEventListener('click', (e) => closeOpenMultiSelect(e.target));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeOpenMultiSelect(); });
+
 // ===== NAVIGATION =====
 function navigate(page, fromHistory = false) {
   const prev = currentPage;
@@ -528,6 +553,7 @@ function onInteraction() {
 }
 
 function closeTopmostLayer() {
+  if (closeOpenMultiSelect()) return true;
   const modal = [...document.querySelectorAll('.modal-overlay')].find(m => !m.classList.contains('hidden'));
   if (modal) {
     // Prefer the modal's own close button so its cleanup still runs; fall back
@@ -793,23 +819,47 @@ function setupShootModal() {
     const masters = mastersRes.data || [];
     const team = teamRes.data || [];
 
-    // Assignee
-    const assigneeSel = document.getElementById('s-assignee');
-    const isExternal = shoot?.assignee_id === '__external' || (!shoot?.assignee_id && shoot?.external_assignee);
-    assigneeSel.innerHTML =
-      (!isEdit ? '<option value="">Select assignee…</option>' : '') +
-      team.map(m =>
-        `<option value="${m.id}" ${shoot?.assignee_id === m.id ? 'selected' : ''}>${m.name}</option>`
-      ).join('') +
-      `<option value="__external" ${isExternal ? 'selected' : ''}>📷 External</option>`;
+    // Assignee — still a dropdown, but each name carries a checkbox so a shoot
+    // can have several people on it.
+    const assigneeBox  = document.getElementById('s-assignee-checks');
+    const assigneeWrap = assigneeBox.closest('.ms-wrap');
+    const assigneeBtn  = document.getElementById('s-assignee-trigger');
+    const assigneeText = document.getElementById('s-assignee-text');
+    const selectedAssignees = assigneeIds(shoot || {});
+    const isExternal = !!shoot?.external_assignee;
+
+    assigneeBox.innerHTML = team.map(m => `
+      <label class="ms-option">
+        <input type="checkbox" value="${m.id}" ${selectedAssignees.includes(m.id) ? 'checked' : ''}>
+        <span>${m.name}</span>
+      </label>
+    `).join('') + `
+      <label class="ms-option">
+        <input type="checkbox" value="__external" ${isExternal ? 'checked' : ''}>
+        <span>📷 External</span>
+      </label>`;
 
     const extGroup = document.getElementById('s-external-group');
     const extInput = document.getElementById('s-external');
-    extGroup.classList.toggle('hidden', !isExternal);
     extInput.value = shoot?.external_assignee || '';
-    assigneeSel.onchange = () => {
-      extGroup.classList.toggle('hidden', assigneeSel.value !== '__external');
+
+    // The closed dropdown has to say who is on the shoot, since the ticks are
+    // out of sight once the menu shuts.
+    const syncAssignee = () => {
+      const checked = Array.from(assigneeBox.querySelectorAll('input:checked'));
+      const names = checked.map(c => c.nextElementSibling.textContent);
+      assigneeText.textContent = names.length ? names.join(', ') : 'Select assignee…';
+      assigneeBtn.classList.toggle('is-empty', names.length === 0);
+      extGroup.classList.toggle('hidden', !checked.some(c => c.value === '__external'));
     };
+    syncAssignee();
+    closeMultiSelect(assigneeWrap);
+
+    assigneeBtn.onclick = () => {
+      const open = !assigneeWrap.classList.contains('is-open');
+      if (open) openMultiSelect(assigneeWrap); else closeMultiSelect(assigneeWrap);
+    };
+    assigneeBox.onchange = syncAssignee;
 
     // Populate name suggestions from past shoots
     const { data: pastNames } = await supabase
@@ -934,9 +984,13 @@ function setupShootModal() {
     const client   = document.getElementById('s-client').value.trim();
     const requested_by = document.getElementById('s-requested-by').value.trim();
     const notes    = document.getElementById('s-notes').value.trim();
-    const assigneeVal = document.getElementById('s-assignee').value;
-    const assignee_id = assigneeVal === '__external' ? null : (assigneeVal || null);
-    const external_assignee = assigneeVal === '__external' ? document.getElementById('s-external').value.trim() : '';
+    const picked = Array.from(document.querySelectorAll('#s-assignee-checks input:checked')).map(c => c.value);
+    const wantsExternal = picked.includes('__external');
+    // assignee_id trails the list as the first person, so the Sheets sync and
+    // anything else still reading the single column keeps working.
+    const assignee_ids = picked.filter(v => v !== '__external');
+    const assignee_id = assignee_ids[0] || null;
+    const external_assignee = wantsExternal ? document.getElementById('s-external').value.trim() : '';
 
     if (!date) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!client) { alert('Please enter a function name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
@@ -945,7 +999,8 @@ function setupShootModal() {
     const type = Array.from(typeChecks).map(c => c.value).join(',');
     if (!type) { alert('Select at least one type'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!requested_by) { alert('Please enter Requested By (Sales Person)'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
-    if (!assigneeVal) { alert('Please select an assignee'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    if (!picked.length) { alert('Please select at least one assignee'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    if (wantsExternal && !external_assignee) { alert('Please enter the external person\'s name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);
@@ -990,7 +1045,7 @@ function setupShootModal() {
       ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
       : 'Planned';
 
-    const row = { date, time, type, client, requested_by, location, notes, assignee_id, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
+    const row = { date, time, type, client, requested_by, location, notes, assignee_id, assignee_ids, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
 
     if (editedShoot) {
       const { data: updated } = await supabase.from('shoots').update(row).eq('id', editedShoot.id).select().single();
@@ -1018,7 +1073,7 @@ function setupShootModal() {
       if (updated) {
         const teamRes = await supabase.from('team_members').select('id, name');
         const team = teamRes.data || [];
-        updated.assignee_name = team.find(t => t.id === updated.assignee_id)?.name || '';
+        updated.assignee_name = assigneeLabel(updated, team, '');
         syncShoot(updated, 'upsert');
       }
 
@@ -1031,7 +1086,7 @@ function setupShootModal() {
       if (inserted) {
         const teamRes = await supabase.from('team_members').select('id, name');
         const team = teamRes.data || [];
-        inserted.assignee_name = team.find(t => t.id === inserted.assignee_id)?.name || '';
+        inserted.assignee_name = assigneeLabel(inserted, team, '');
         syncShoot(inserted, 'upsert');
       }
 

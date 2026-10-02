@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { isAssigned } from './assignees.js';
 import { getMember } from './auth.js';
 
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
@@ -62,7 +63,7 @@ function getPreviousPeriod(from, to) {
 function filterShootsForMember(shoots, logs, memberId) {
   if (memberId === 'All') return shoots;
   const touchedIds = new Set(logs.filter(l => l.member_id === memberId).map(l => l.shoot_id));
-  return shoots.filter(s => s.assignee_id === memberId || touchedIds.has(s.id));
+  return shoots.filter(s => isAssigned(s, memberId) || touchedIds.has(s.id));
 }
 
 function trendBadge(current, previous) {

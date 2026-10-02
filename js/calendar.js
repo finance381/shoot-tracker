@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { isAssigned, assigneeLabel } from './assignees.js';
 import { withTimeout } from './app.js';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -103,10 +104,7 @@ export function openDaySheet(date, shoots, team) {
 
   const d = new Date(date + 'T00:00:00');
   const heading = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-  const assigneeName = (s) => {
-    if (s.external_assignee) return '📷 ' + s.external_assignee;
-    return team.find(t => t.id === s.assignee_id)?.name || '—';
-  };
+  const assigneeName = (s) => assigneeLabel(s, team);
 
   const overlay = document.createElement('div');
   overlay.id = 'cal-day-sheet';
@@ -174,7 +172,7 @@ export function openDaySheet(date, shoots, team) {
       if (!s) return;
       let show = true;
       if (assignee === '__external') show = !!s.external_assignee;
-      else if (assignee !== 'All') show = s.assignee_id === assignee;
+      else if (assignee !== 'All') show = isAssigned(s, assignee);
       if (show && q) {
         // Function name and notes only, same rule as the Shoots page.
         const haystack = [s.client, s.notes].filter(Boolean).join(' ').toLowerCase();

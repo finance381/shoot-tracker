@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { assigneeLabel } from './assignees.js';
 
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
@@ -110,7 +111,7 @@ async function renderMyRequests(el, r) {
     const shootIds = acceptedWithShoot.map(r2 => r2.shoot_id);
     const { data: shootsData } = await supabase
       .from('shoots')
-      .select('id, assignee_id, external_assignee')
+      .select('id, assignee_id, assignee_ids, external_assignee')
       .in('id', shootIds);
 
     const { data: teamData } = await supabase
@@ -119,8 +120,7 @@ async function renderMyRequests(el, r) {
 
     const shootMap = {};
     (shootsData || []).forEach(s => {
-      const member = (teamData || []).find(t => t.id === s.assignee_id);
-      shootMap[s.id] = s.external_assignee || member?.name || '';
+      shootMap[s.id] = assigneeLabel(s, teamData || [], '');
     });
 
     (byId || []).forEach(req => {
@@ -575,8 +575,7 @@ function renderDayPanel(panel, all, team) {
     return;
   }
 
-  const assigneeName = (s) => s.external_assignee ? '📷 ' + s.external_assignee
-    : (team.find(t => t.id === s.assignee_id)?.name || '—');
+  const assigneeName = (s) => assigneeLabel(s, team);
 
   panel.innerHTML = `
     <div class="req-day-head">${heading}<span class="req-day-count">${shoots.length} ${shoots.length === 1 ? 'shoot' : 'shoots'}</span></div>

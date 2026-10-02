@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { isAssigned, assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
 
@@ -143,7 +144,7 @@ export async function render() {
   });
 
   const filtered = shoots.filter(s => {
-    if (filterMember !== 'All' && s.assignee_id !== filterMember) return false;
+    if (filterMember !== 'All' && !isAssigned(s, filterMember)) return false;
     // With a type chosen, status applies to THAT deliverable — "Photos posted"
     // means the photo is posted, not that the shoot has some posted thing.
     if (filterType !== 'All') {
@@ -404,8 +405,7 @@ function renderDeptSummary(counts) {
 }
 
 function getAssigneeName(s) {
-  if (s.external_assignee) return '📷 ' + s.external_assignee;
-  return teamCache.find(t => t.id === s.assignee_id)?.name || '—';
+  return assigneeLabel(s, teamCache);
 }
 
 function renderLocation(s) {
@@ -557,8 +557,7 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
       await logStatusChange(shootId, typeName, oldStatus, newStatus);
 
       if (updated) {
-        const teamMember = teamCache.find(t => t.id === updated.assignee_id);
-        updated.assignee_name = teamMember?.name || '';
+        updated.assignee_name = assigneeLabel(updated, teamCache, '');
         import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(updated, 'upsert'));
       }
 
@@ -581,7 +580,7 @@ function renderDateGroups(dates, grouped, me, lastChangeMap) {
 }
 
 function renderShootCard(s, me, lastChangeMap) {
-  const isMine = me && s.assignee_id === me.id;
+  const isMine = isAssigned(s, me?.id);
   const ts = s.type_statuses || {};
   const types = Object.keys(ts);
   const loc = renderLocation(s);

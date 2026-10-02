@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
@@ -498,7 +499,7 @@ async function openAcceptModal(req, team) {
 
     if (existing && existing.length > 0) {
       const match = existing[0];
-      const assignee = team.find(t => t.id === match.assignee_id)?.name || match.external_assignee || 'Unassigned';
+      const assignee = assigneeLabel(match, team, 'Unassigned');
       const banner = document.createElement('div');
       banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
       banner.innerHTML = `
@@ -522,7 +523,7 @@ async function openAcceptModal(req, team) {
 
       if (existing && existing.length > 0) {
         const match = existing[0];
-        const assignee = team.find(t => t.id === match.assignee_id)?.name || match.external_assignee || 'Unassigned';
+        const assignee = assigneeLabel(match, team, 'Unassigned');
         const banner = document.createElement('div');
         banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
         banner.innerHTML = `
@@ -623,6 +624,7 @@ async function openAcceptModal(req, team) {
           requested_by,
           location, location_type, outdoor_venue,
           assignee_id: assigneeId === '__external' ? null : assigneeId,
+          assignee_ids: assigneeId === '__external' ? [] : [assigneeId],
           external_assignee: assigneeId === '__external' ? overlay.querySelector('#acc-ext-name').value.trim() : '',
           status: 'Planned',
           type_statuses,
@@ -647,8 +649,7 @@ async function openAcceptModal(req, team) {
       }).eq('id', req.id);
 
       if (shoot) {
-        const teamMember = team.find(t => t.id === shoot.assignee_id);
-        shoot.assignee_name = teamMember?.name || '';
+        shoot.assignee_name = assigneeLabel(shoot, team, '');
         import('./sheets-sync.js').then(({ syncShoot }) => syncShoot(shoot, 'upsert'));
       }
 

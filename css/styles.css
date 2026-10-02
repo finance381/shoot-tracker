@@ -1320,6 +1320,87 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Multi-pick dropdown — reads like the selects beside it, but each row in the
+   menu carries its own checkbox so several people can be on one shoot. */
+.ms-wrap { position: relative; }
+.ms-trigger {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+  color: var(--espresso);
+  font-family: var(--font);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.ms-trigger:focus,
+.ms-wrap.is-open .ms-trigger {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.ms-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ms-trigger.is-empty > span { color: var(--stone); }
+.ms-trigger svg { flex: none; transition: transform .15s; }
+.ms-wrap.is-open .ms-trigger svg { transform: rotate(180deg); }
+
+.ms-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-solid, var(--surface));
+  box-shadow: var(--shadow-lg);
+}
+/* These rows are <label>s inside .form-group, whose own label rule is more
+   specific, so match it or the names come out shouting in uppercase. */
+.form-group .ms-option,
+.ms-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--espresso);
+  user-select: none;
+}
+.ms-option:hover { background: var(--surface-tint); }
+.form-group .ms-option input[type="checkbox"],
+.ms-option input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 .check-label {
   display: flex;
   align-items: center;
