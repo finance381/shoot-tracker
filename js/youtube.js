@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getMember, isAdmin } from './auth.js';
+import { getTypeStatus } from './shoot-status.js';
 
 const container = () => document.getElementById('page-youtube');
 
@@ -82,7 +83,9 @@ export function classifyRows(shoots, byShoot) {
     .filter(s => s.type_statuses && SALES_VIDEO in s.type_statuses)
     .map(s => {
       const rec = byShoot[s.id] || null;
-      const videoStatus = s.type_statuses[SALES_VIDEO];
+      // Least-advanced across departments — not ready to post until every
+      // department's copy of the sales video is actually Posted.
+      const videoStatus = getTypeStatus(s, SALES_VIDEO);
       const onYouTube = !!rec?.posted_at;
       return { shoot: s, rec, videoStatus, onYouTube, ready: videoStatus === 'Posted' && !onYouTube };
     });

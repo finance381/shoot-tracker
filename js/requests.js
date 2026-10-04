@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
+import { getDeptStatuses } from './shoot-status.js';
 
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 let renderGen = 0;
@@ -19,17 +20,27 @@ const container = () => document.getElementById('page-requests');
 // Accepting a request sets deliverable statuses, so those changes belong in the
 // same log the Shoots stepper writes to — otherwise Reports cannot tell that a
 // stage was ever reached.
-async function logStatusChanges(shootId, oldTS, newTS, me) {
-  const rows = Object.keys(newTS || {})
-    .filter(t => (oldTS || {})[t] !== newTS[t])
-    .map(t => ({
-      shoot_id: shootId,
-      member_id: me?.id,
-      member_name: me?.name || 'Unknown',
-      type_name: t,
-      from_status: (oldTS || {})[t] || null,
-      to_status: newTS[t]
-    }));
+// oldShoot is the pre-merge shoot (for normalizing legacy flat type_statuses
+// against its departments) or null for a brand-new shoot.
+async function logStatusChanges(shootId, oldShoot, newTS, me) {
+  const rows = [];
+  Object.keys(newTS || {}).forEach(t => {
+    const oldDeptStatuses = oldShoot ? getDeptStatuses(oldShoot, t) : {};
+    const newDeptStatuses = newTS[t] || {};
+    Object.keys(newDeptStatuses).forEach(d => {
+      if (oldDeptStatuses[d] !== newDeptStatuses[d]) {
+        rows.push({
+          shoot_id: shootId,
+          member_id: me?.id,
+          member_name: me?.name || 'Unknown',
+          type_name: t,
+          department: d,
+          from_status: oldDeptStatuses[d] || null,
+          to_status: newDeptStatuses[d]
+        });
+      }
+    });
+  });
   if (rows.length) await supabase.from('audit_log').insert(rows);
 }
 
@@ -568,7 +579,7 @@ async function openAcceptModal(req, team) {
       const me = getMember();
       const types = typeStr.split(',').map(t => t.trim()).filter(Boolean);
       const type_statuses = {};
-      types.forEach(t => { type_statuses[t] = 'Planned'; });
+      types.forEach(t => { type_statuses[t] = Object.fromEntries(depts.map(d => [d, 'Planned'])); });
 
       // Check for existing shoot on same date + location to merge
       let matchQuery = supabase.from('shoots').select('*')
@@ -587,15 +598,21 @@ async function openAcceptModal(req, team) {
 
       if (match) {
         // Merge: add new types + departments into existing shoot
-        const mergedTS = { ...match.type_statuses };
-        types.forEach(t => { if (!mergedTS[t]) mergedTS[t] = 'Planned'; });
-
         const existingTypes = (match.type || '').split(',').map(t => t.trim()).filter(Boolean);
         const mergedTypes = [...new Set([...existingTypes, ...types])].join(', ');
 
         const existingDepts = Array.isArray(match.departments) ? match.departments : [];
         const newDepts = Array.isArray(depts) ? depts : [];
         const mergedDepts = [...new Set([...existingDepts, ...newDepts])];
+
+        // Every (type, dept) pair on the merged shoot needs a status: keep what's
+        // already there (normalizing any legacy flat value against the shoot's old
+        // departments), default newly-added types/departments to Planned.
+        const mergedTS = {};
+        [...new Set([...existingTypes, ...types])].forEach(t => {
+          const existingForType = getDeptStatuses(match, t);
+          mergedTS[t] = Object.fromEntries(mergedDepts.map(d => [d, existingForType[d] || 'Planned']));
+        });
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
         const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');
@@ -612,7 +629,7 @@ async function openAcceptModal(req, team) {
 
         if (upErr) throw upErr;
         shoot = updated;
-        await logStatusChanges(match.id, match.type_statuses, mergedTS, me);
+        await logStatusChanges(match.id, match, mergedTS, me);
 
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Merged into existing shoot on same date & venue!' }));
       } else {
@@ -636,7 +653,7 @@ async function openAcceptModal(req, team) {
 
         if (shootErr) throw shootErr;
         shoot = newShoot;
-        await logStatusChanges(newShoot.id, {}, type_statuses, me);
+        await logStatusChanges(newShoot.id, null, type_statuses, me);
 
         window.dispatchEvent(new CustomEvent('toast', { detail: 'Shoot created from request!' }));
       }

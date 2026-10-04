@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { assigneeLabel } from './assignees.js';
+import { getTypeStatus } from './shoot-status.js';
 
 const VAPID_PUBLIC_KEY = 'BPKiw8ndsho2x0VV-j920x49cPM4Z9CkQ7GR77k3_BYd-0Xhc0CWTyvYxSmMi964QAVlF0c64khXpEvCC5BV79k';
 
@@ -576,13 +577,23 @@ function renderDayPanel(panel, all, team) {
   }
 
   const assigneeName = (s) => assigneeLabel(s, team);
+  // A department-type login (e.g. logged in as "Decor") sees that department's own
+  // progress rather than the shared rollup; a venue-type login still sees the rollup,
+  // since it doesn't represent a single department.
+  const r = getRequester();
+  const myDept = r && r.type !== 'venue' ? r.display_name : undefined;
 
   panel.innerHTML = `
     <div class="req-day-head">${heading}<span class="req-day-count">${shoots.length} ${shoots.length === 1 ? 'shoot' : 'shoots'}</span></div>
     ${shoots.map(s => {
       const ts = s.type_statuses || {};
       const types = Object.keys(ts).length > 0
-        ? Object.entries(ts).map(([t, st]) => `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`).join('')
+        ? Object.keys(ts).map(t => {
+            // Fall back to the rollup if this shoot doesn't actually list the
+            // requester's department (e.g. old data matched by venue only).
+            const st = (myDept && getTypeStatus(s, t, myDept)) || getTypeStatus(s, t);
+            return `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`;
+          }).join('')
         : (s.type || '').split(',').filter(Boolean).map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
       const loc = s.location_type === 'outdoor' ? (s.outdoor_venue || 'Outdoor') : (s.location || '');
       return `

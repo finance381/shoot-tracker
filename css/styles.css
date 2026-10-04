@@ -1473,6 +1473,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 .tag-type.status-edited  { background: var(--plum-soft); color: var(--plum-ink); }
 .tag-type.status-Posted  { background: var(--sage-soft); color: var(--sage-ink); }
 .tag-dept { background: var(--terracotta-soft); color: var(--terracotta); }
+.tag-dept.clickable { cursor: pointer; border: 1px solid transparent; }
+.tag-dept.clickable.active { background: var(--terracotta); color: #fff; border-color: var(--terracotta); }
 .tag-impromptu { background: #FFF3E0; color: #E65100; }
 .tag-outdoor { background: var(--sage-bg); color: var(--sage); }
 

@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { isAssigned, assigneeLabel } from './assignees.js';
 import { withTimeout } from './app.js';
+import { getTypeStatus } from './shoot-status.js';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -129,7 +130,10 @@ export function openDaySheet(date, shoots, team) {
         ${shoots.map(s => {
           const ts = s.type_statuses || {};
           const types = Object.keys(ts).length > 0
-            ? Object.entries(ts).map(([t, st]) => `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`).join('')
+            ? Object.keys(ts).map(t => {
+                const st = getTypeStatus(s, t);
+                return `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`;
+              }).join('')
             : (s.type || '').split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
           const loc = s.location_type === 'outdoor' ? (s.outdoor_venue || 'Outdoor') : (s.location || '');
           return `

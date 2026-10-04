@@ -3,6 +3,7 @@ import { isAssigned, assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
 import { openDayDetail } from './calendar.js';
+import { getTypeStatus } from './shoot-status.js';
 
 const container = () => document.getElementById('page-dashboard');
 let renderGen = 0;
@@ -31,14 +32,14 @@ export async function render() {
   let pendingItems = 0;
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
-    Object.values(ts).forEach(st => { if (st !== 'Posted') pendingItems++; });
+    Object.keys(ts).forEach(t => { if (getTypeStatus(s, t) !== 'Posted') pendingItems++; });
   });
   const posted   = shoots.filter(s => s.status === 'Posted');
   const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
-    Object.entries(ts).forEach(([t, st]) => {
-      if (st === 'Posted' && t in postedByType) postedByType[t]++;
+    Object.keys(ts).forEach(t => {
+      if (getTypeStatus(s, t) === 'Posted' && t in postedByType) postedByType[t]++;
     });
   });
   const upcoming = shoots
@@ -58,9 +59,10 @@ export async function render() {
     let tags = '';
     const ts = s.type_statuses || {};
     if (Object.keys(ts).length > 0) {
-      tags += Object.entries(ts).map(([t, st]) =>
-        `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`
-      ).join('');
+      tags += Object.keys(ts).map(t => {
+        const st = getTypeStatus(s, t);
+        return `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`;
+      }).join('');
     } else if (s.type) {
       tags += s.type.split(',').map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
     }

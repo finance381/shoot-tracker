@@ -2,8 +2,9 @@ import { supabase } from './supabase.js';
 import { isAssigned, assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
+import { STATUS_ORDER, STATUS_LABEL, STATUS_COLOR, getTypeStatus, getOverallStatus, setDeptStatus } from './shoot-status.js';
 
-async function logStatusChange(shootId, typeName, fromStatus, toStatus) {
+async function logStatusChange(shootId, typeName, department, fromStatus, toStatus) {
   const me = getMember();
   if (!me) return;
   await supabase.from('audit_log').insert({
@@ -11,17 +12,11 @@ async function logStatusChange(shootId, typeName, fromStatus, toStatus) {
     member_id: me.id,
     member_name: me.name,
     type_name: typeName,
+    department: department || null,
     from_status: fromStatus,
     to_status: toStatus
   });
 }
-
-const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
-// Scoped to the Shoots page tracker only — reuses existing site tokens (blue/purple
-// brand accent/terracotta/sage) rather than the amber/plum pair used elsewhere (Reports,
-// donuts), per the redesign mockup's own status legend (Planned/Shot/Edited/Posted).
-const STATUS_COLOR = { Planned: 'var(--blue)', Shot: 'var(--primary)', edited: 'var(--terracotta)', Posted: 'var(--sage)' };
-const STATUS_LABEL = { Planned: 'Planned', Shot: 'Shot', edited: 'Edited', Posted: 'Posted' };
 
 const TYPE_ICON_META = {
   Photo: { color: 'var(--blue)', bg: 'var(--blue-soft)', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' },
@@ -31,10 +26,10 @@ const TYPE_ICON_META = {
 const DEFAULT_TYPE_ICON = { color: 'var(--stone)', bg: 'var(--sand)', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/></svg>' };
 const CHECK_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
-function renderStepper(shootId, typeName, currentStatus) {
+function renderStepper(shootId, typeName, dept, currentStatus) {
   const idx = STATUS_ORDER.indexOf(currentStatus);
   return `
-    <div class="stepper" data-sid="${shootId}" data-type="${typeName}">
+    <div class="stepper" data-sid="${shootId}" data-type="${typeName}" data-dept="${dept || ''}">
       ${STATUS_ORDER.map((st, i) => `
         ${i > 0 ? `<div class="stepper-line ${i <= idx ? 'is-done' : ''}" style="--seg-color:${STATUS_COLOR[st]}"></div>` : ''}
         <button type="button" class="stepper-node ${i < idx ? 'is-done' : i === idx ? 'is-current' : 'is-upcoming'}" style="--node-color:${STATUS_COLOR[st]}" data-to="${st}" title="${STATUS_LABEL[st]}">
@@ -58,6 +53,9 @@ let filterDateFrom = '';
 let filterDateTo = '';
 let filterSearch = '';
 let filterDateDir = 'all';
+// Which department's status a multi-dept shoot card is currently showing — keyed by
+// shoot id, survives re-renders. Defaults to the shoot's first department.
+let activeDeptByShoot = {};
 let venueDropdownOpen = false;
 let venueOutsideClickBound = false;
 let deptDropdownOpen = false;
@@ -125,7 +123,7 @@ export async function render() {
     supabase.from('shoots').select('*').order('date', { ascending: true }).order('time', { ascending: true, nullsFirst: false }).order('id', { ascending: true }),
     supabase.from('team_members').select('id, name, role'),
     supabase.from('masters').select('*').eq('type', 'location').order('sort_order'),
-    supabase.from('audit_log').select('shoot_id, type_name, member_name, created_at').order('created_at', { ascending: false })
+    supabase.from('audit_log').select('shoot_id, type_name, department, member_name, created_at').order('created_at', { ascending: false })
   ]);
 
   // Only bail if a NEWER render has started AND completed data fetch
@@ -136,10 +134,10 @@ export async function render() {
   venueCache = (mastersRes.data || []).map(m => m.label);
   const me = getMember();
 
-  // Logs are ordered newest-first, so the first entry seen per (shoot, type) is the latest.
+  // Logs are ordered newest-first, so the first entry seen per (shoot, type, dept) is the latest.
   const lastChangeMap = {};
   (logsRes.data || []).forEach(l => {
-    const key = `${l.shoot_id}::${l.type_name}`;
+    const key = `${l.shoot_id}::${l.type_name}::${l.department || ''}`;
     if (!lastChangeMap[key]) lastChangeMap[key] = l.member_name;
   });
 
@@ -147,19 +145,22 @@ export async function render() {
     if (filterMember !== 'All' && !isAssigned(s, filterMember)) return false;
     // With a type chosen, status applies to THAT deliverable — "Photos posted"
     // means the photo is posted, not that the shoot has some posted thing.
+    // These filters are rollups across departments, independent of whichever
+    // dept tab a card happens to have active.
     if (filterType !== 'All') {
       const ts = s.type_statuses || {};
       if (!(filterType in ts)) return false;
+      const rolledUp = getTypeStatus(s, filterType);
       if (filterStatus === '__not_posted') {
-        if (ts[filterType] === 'Posted') return false;
-      } else if (filterStatus !== 'All' && ts[filterType] !== filterStatus) {
+        if (rolledUp === 'Posted') return false;
+      } else if (filterStatus !== 'All' && rolledUp !== filterStatus) {
         return false;
       }
     } else if (filterStatus === '__not_posted') {
       if (s.status === 'Posted') return false;
     } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
-      const statuses = Object.keys(ts).length > 0 ? Object.values(ts) : [s.status];
+      const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
       if (!statuses.includes(filterStatus)) return false;
     }
     if (filterVenues.length > 0) {
@@ -369,10 +370,14 @@ function computeDeptStatusSummary(shoots) {
   const counts = {};
   DEPARTMENTS.forEach(d => { counts[d] = { total: 0, Planned: 0, Shot: 0, edited: 0, Posted: 0 }; });
   shoots.forEach(s => {
-    const depts = (s.departments || []).map(raw => DEPARTMENTS.find(d => d.toLowerCase() === String(raw).toLowerCase())).filter(Boolean);
-    const overall = getOverallStatus(s);
-    depts.forEach(d => {
+    (s.departments || []).forEach(raw => {
+      const d = DEPARTMENTS.find(cd => cd.toLowerCase() === String(raw).toLowerCase());
+      if (!d) return;
       counts[d].total++;
+      // Scoped to this department's own deliverables (keyed by the shoot's own raw
+      // department string, which is what type_statuses' dept keys match), not fanned
+      // out from the shoot-wide rollup — a shoot's Decor items can be ahead of Venue's.
+      const overall = getOverallStatus(s, raw);
       if (counts[d][overall] !== undefined) counts[d][overall]++;
     });
   });
@@ -417,25 +422,18 @@ function renderLocation(s) {
 // match it — e.g. under "Pending", show the unposted Sales Video, not the Photo
 // and Reel that are already done.
 function splitTypesByFilter(s, types) {
-  const ts = s.type_statuses || {};
-  // A chosen type is the most specific thing the user asked for, so lead with it.
+  // Rollups across departments — independent of whichever dept tab a card has active.
   if (filterType !== 'All') {
     return { shown: types.filter(t => t === filterType), rest: types.filter(t => t !== filterType) };
   }
   if (filterStatus === 'All') return { shown: types, rest: [] };
   const match = filterStatus === '__not_posted'
-    ? (t) => ts[t] !== 'Posted'
-    : (t) => ts[t] === filterStatus;
+    ? (t) => getTypeStatus(s, t) !== 'Posted'
+    : (t) => getTypeStatus(s, t) === filterStatus;
   const shown = types.filter(match);
   const rest = types.filter(t => !match(t));
   // Never render an empty card: if nothing matched, fall back to everything.
   return shown.length ? { shown, rest } : { shown: types, rest: [] };
-}
-
-function getOverallStatus(s) {
-  const ts = s.type_statuses || {};
-  if (Object.keys(ts).length === 0) return s.status;
-  return STATUS_ORDER[Math.min(...Object.values(ts).map(st => STATUS_ORDER.indexOf(st)))];
 }
 
 function formatDateHeading(dateStr) {
@@ -540,21 +538,22 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
       const stepper = btn.closest('.stepper');
       const shootId = stepper.dataset.sid;
       const typeName = stepper.dataset.type;
+      const dept = stepper.dataset.dept || undefined;
       const newStatus = btn.dataset.to;
       const shoot = allShoots.find(s => s.id === shootId);
       if (!shoot) return;
-      const oldStatus = shoot.type_statuses[typeName];
+      const oldStatus = getTypeStatus(shoot, typeName, dept);
       if (oldStatus === newStatus) return;
 
       stepper.querySelectorAll('.stepper-node').forEach(b => b.disabled = true);
-      const updatedTS = { ...shoot.type_statuses, [typeName]: newStatus };
-      const overallStatus = STATUS_ORDER[Math.min(...Object.values(updatedTS).map(st => STATUS_ORDER.indexOf(st)))];
+      const updatedTS = setDeptStatus(shoot.type_statuses, typeName, dept, newStatus, shoot);
+      const overallStatus = getOverallStatus({ ...shoot, type_statuses: updatedTS });
 
       const { data: updated } = await supabase.from('shoots').update({
         type_statuses: updatedTS, status: overallStatus
       }).eq('id', shootId).select().single();
 
-      await logStatusChange(shootId, typeName, oldStatus, newStatus);
+      await logStatusChange(shootId, typeName, dept, oldStatus, newStatus);
 
       if (updated) {
         updated.assignee_name = assigneeLabel(updated, teamCache, '');
@@ -562,7 +561,19 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
       }
 
       render();
-      window.dispatchEvent(new CustomEvent('toast', { detail: `${typeName} → ${newStatus}` }));
+      window.dispatchEvent(new CustomEvent('toast', { detail: `${typeName}${dept ? ' · ' + dept : ''} → ${newStatus}` }));
+    });
+  });
+
+  // Department tags on a multi-dept card switch which department's status rows show —
+  // a cheap local redraw, no network round-trip needed just to look at another dept.
+  el.querySelectorAll('.tag-dept.clickable').forEach(tag => {
+    tag.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = tag.closest('.shoot-card');
+      if (!card) return;
+      activeDeptByShoot[card.dataset.id] = tag.dataset.dept;
+      renderDateGrouped(el, filtered, allShoots, me, lastChangeMap);
     });
   });
 }
@@ -585,6 +596,10 @@ function renderShootCard(s, me, lastChangeMap) {
   const types = Object.keys(ts);
   const loc = renderLocation(s);
   const overall = getOverallStatus(s);
+  const depts = s.departments || [];
+  const multiDept = depts.length > 1;
+  if (multiDept && !depts.includes(activeDeptByShoot[s.id])) activeDeptByShoot[s.id] = depts[0];
+  const activeDept = multiDept ? activeDeptByShoot[s.id] : depts[0];
 
   return `
     <div class="shoot-card ${isMine ? 'shoot-mine' : ''} border-${overall}" data-id="${s.id}">
@@ -604,25 +619,26 @@ function renderShootCard(s, me, lastChangeMap) {
         ${(() => {
           if (filterStatus === 'All' || types.length === 0) return '';
           const n = filterStatus === '__not_posted'
-            ? types.filter(t => ts[t] !== 'Posted').length
-            : types.filter(t => ts[t] === filterStatus).length;
+            ? types.filter(t => getTypeStatus(s, t) !== 'Posted').length
+            : types.filter(t => getTypeStatus(s, t) === filterStatus).length;
           if (!n) return '';
           const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
           return `<div class="pending-count-row"><span class="pending-count-chip">${n} ${word}</span></div>`;
         })()}
+        ${multiDept ? `<div class="tag-row">${depts.map(d => `<span class="tag tag-dept clickable ${d === activeDept ? 'active' : ''}" data-dept="${d}">${d}</span>`).join('')}</div>` : ''}
         ${types.length > 0 ? (() => {
           const { shown, rest } = splitTypesByFilter(s, types);
           return `
           <div class="type-status-rows">
             ${shown.map(t => {
-              const tStatus = ts[t];
+              const tStatus = getTypeStatus(s, t, activeDept);
               const iconMeta = TYPE_ICON_META[t] || DEFAULT_TYPE_ICON;
-              const lastBy = lastChangeMap?.[`${s.id}::${t}`];
+              const lastBy = lastChangeMap?.[`${s.id}::${t}::${activeDept || ''}`];
               return `
                 <div class="type-status-row">
                   <span class="type-icon-circle" style="background:${iconMeta.bg};color:${iconMeta.color}">${iconMeta.icon}</span>
                   <span class="type-name">${t}</span>
-                  ${renderStepper(s.id, t, tStatus)}
+                  ${renderStepper(s.id, t, activeDept, tStatus)}
                   <span class="type-current-label status-${tStatus}">${STATUS_LABEL[tStatus]}</span>
                 </div>
                 ${lastBy ? `<div class="type-last-editor">Last updated by <strong>${lastBy}</strong></div>` : ''}`;
@@ -631,7 +647,7 @@ function renderShootCard(s, me, lastChangeMap) {
               <div class="type-rest-note">
                 ${filterStatus === '__not_posted'
                   ? `${CHECK_ICON}<span>${rest.join(', ')} already posted</span>`
-                  : `<span>${rest.map(t => `${t} · ${STATUS_LABEL[ts[t]]}`).join('  ·  ')}</span>`}
+                  : `<span>${rest.map(t => `${t} · ${STATUS_LABEL[getTypeStatus(s, t)]}`).join('  ·  ')}</span>`}
               </div>` : ''}
           </div>`;
         })() : `
@@ -642,7 +658,7 @@ function renderShootCard(s, me, lastChangeMap) {
             </div>
           </div>
         `}
-        ${s.departments?.length ? `<div class="tag-row" style="margin-top:6px">${s.departments.map(d => `<span class="tag tag-dept">${d}</span>`).join('')}</div>` : ''}
+        ${!multiDept && depts.length ? `<div class="tag-row" style="margin-top:6px">${depts.map(d => `<span class="tag tag-dept">${d}</span>`).join('')}</div>` : ''}
       </div>
     </div>
   `;

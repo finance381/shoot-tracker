@@ -10,6 +10,7 @@ import { render as renderRequests } from './requests.js';
 import { syncShoot } from './sheets-sync.js';
 import { assigneeIds, assigneeLabel } from './assignees.js';
 import { getRequester, loginRequester, logoutRequester, renderRequesterApp } from './requester-view.js';
+import { getDeptStatuses, getOverallStatus } from './shoot-status.js';
 
 // Timeout wrapper for any async operation
 function withTimeout(promise, ms = 8000) {
@@ -950,7 +951,7 @@ function setupShootModal() {
               const time = new Date(l.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
               return `<div class="audit-row">
                 <span class="audit-who">${l.member_name}</span>
-                <span class="audit-what">${l.type_name}: ${l.from_status} → ${l.to_status}</span>
+                <span class="audit-what">${l.type_name}${l.department ? ' · ' + l.department : ''}: ${l.from_status} → ${l.to_status}</span>
                 <span class="audit-when">${time}</span>
               </div>`;
             }).join('')}
@@ -1024,25 +1025,29 @@ function setupShootModal() {
       userChangedStatus = status !== editedShoot.status;
     }
 
-    const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
     const types = type.split(',').map(t => t.trim()).filter(Boolean);
+    // Each type's status is tracked per department — bulk-editing the status bar here
+    // sets every department to the same stage; per-department divergence is set later
+    // from the stepper on the Shoots tab.
     let type_statuses = {};
     if (editedShoot && editedShoot.type_statuses) {
       types.forEach(t => {
         if (userChangedStatus) {
-          // User explicitly changed the status bar → bulk apply to all types
-          type_statuses[t] = status;
+          // User explicitly changed the status bar → bulk apply to all departments
+          type_statuses[t] = Object.fromEntries(departments.map(d => [d, status]));
         } else {
-          // Status bar untouched → preserve existing per-type statuses; new types default to overall
-          type_statuses[t] = editedShoot.type_statuses[t] || status;
+          // Status bar untouched → preserve existing per-dept statuses; new
+          // departments/types default to the overall status.
+          const existing = getDeptStatuses(editedShoot, t);
+          type_statuses[t] = Object.fromEntries(departments.map(d => [d, existing[d] || status]));
         }
       });
     } else {
-      types.forEach(t => { type_statuses[t] = status; });
+      types.forEach(t => { type_statuses[t] = Object.fromEntries(departments.map(d => [d, status])); });
     }
 
     const overallStatus = editedShoot
-      ? STATUS_ORDER[Math.min(...Object.values(type_statuses).map(s => STATUS_ORDER.indexOf(s)))]
+      ? getOverallStatus({ type_statuses, departments })
       : 'Planned';
 
     const row = { date, time, type, client, requested_by, location, notes, assignee_id, assignee_ids, external_assignee, status: overallStatus, departments, location_type, outdoor_venue, is_impromptu, type_statuses };
@@ -1050,22 +1055,26 @@ function setupShootModal() {
     if (editedShoot) {
       const { data: updated } = await supabase.from('shoots').update(row).eq('id', editedShoot.id).select().single();
 
-      // Log type status changes
-      const oldTS = editedShoot.type_statuses || {};
+      // Log status changes per (type, department) pair
       const newTS = type_statuses || {};
       const me = getMember();
       for (const t of Object.keys(newTS)) {
-        // A newly added deliverable has no old status; its first status is
-        // still a real change and belongs in the log.
-        if (oldTS[t] !== newTS[t]) {
-          await supabase.from('audit_log').insert({
-            shoot_id: editedShoot.id,
-            member_id: me?.id,
-            member_name: me?.name || 'Unknown',
-            type_name: t,
-            from_status: oldTS[t] || null,
-            to_status: newTS[t]
-          });
+        const oldDeptStatuses = getDeptStatuses(editedShoot, t);
+        const newDeptStatuses = newTS[t];
+        for (const d of Object.keys(newDeptStatuses)) {
+          // A newly added deliverable/department has no old status; its first
+          // status is still a real change and belongs in the log.
+          if (oldDeptStatuses[d] !== newDeptStatuses[d]) {
+            await supabase.from('audit_log').insert({
+              shoot_id: editedShoot.id,
+              member_id: me?.id,
+              member_name: me?.name || 'Unknown',
+              type_name: t,
+              department: d,
+              from_status: oldDeptStatuses[d] || null,
+              to_status: newDeptStatuses[d]
+            });
+          }
         }
       }
 

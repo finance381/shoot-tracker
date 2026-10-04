@@ -1,8 +1,7 @@
 import { supabase } from './supabase.js';
 import { isAssigned } from './assignees.js';
 import { getMember } from './auth.js';
-
-const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
+import { STATUS_ORDER, getTypeStatus, getOverallStatus } from './shoot-status.js';
 
 // Some older rows store the value "Editing"; the app writes 'edited' and shows
 // it as "Edited". Anything that
@@ -11,19 +10,22 @@ const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 const STATUS_ALIASES = { Editing: 'edited', Edited: 'edited' };
 const normStatus = (v) => STATUS_ALIASES[v] ?? v;
 
-// A shoot's stage is the least-advanced of its deliverables — the same rule the
-// Shoots page uses. Deriving it here keeps the two pages from disagreeing when
-// the stored status column has gone stale.
+// A shoot's stage is the least-advanced of its deliverables, across every
+// department — the same rule the Shoots page uses. Deriving it here keeps the
+// two pages from disagreeing when the stored status column has gone stale.
 function overallStatus(s) {
-  const ts = s.type_statuses || {};
-  const idx = Object.values(ts).map(v => STATUS_ORDER.indexOf(v)).filter(i => i >= 0);
-  return idx.length ? STATUS_ORDER[Math.min(...idx)] : s.status;
+  return getOverallStatus(s);
 }
 
 function normaliseShoot(s) {
   let ts = s.type_statuses;
   if (ts && typeof ts === 'object') {
-    ts = Object.fromEntries(Object.entries(ts).map(([k, v]) => [k, normStatus(v)]));
+    ts = Object.fromEntries(Object.entries(ts).map(([k, v]) => [
+      k,
+      (v && typeof v === 'object')
+        ? Object.fromEntries(Object.entries(v).map(([d, st]) => [d, normStatus(st)]))
+        : normStatus(v)
+    ]));
   }
   const out = { ...s, type_statuses: ts, status: normStatus(s.status) };
   out.status = overallStatus(out);
@@ -207,8 +209,8 @@ export async function render() {
 const PHASE_WEIGHT = { Planned: 0, Shot: 40, edited: 75, Posted: 100 };
 
 function getShootCompletion(s) {
-  const ts = s.type_statuses || {};
-  const statuses = (Object.keys(ts).length > 0 ? Object.values(ts) : [s.status]).map(normStatus);
+  const types = Object.keys(s.type_statuses || {});
+  const statuses = (types.length > 0 ? types.map(t => getTypeStatus(s, t)) : [s.status]).map(normStatus);
   const total = statuses.reduce((sum, st) => sum + (PHASE_WEIGHT[st] || 0), 0);
   return Math.round(total / statuses.length);
 }
@@ -239,8 +241,8 @@ function getReachedCounts(shoots, history = {}) {
   shoots.forEach(s => {
     const stages = new Set(history[s.id] || []);
     // Whatever a deliverable sits at now is a stage it has reached, logged or not.
-    Object.values(s.type_statuses || {}).forEach(v => {
-      const st = normStatus(v);
+    Object.keys(s.type_statuses || {}).forEach(t => {
+      const st = normStatus(getTypeStatus(s, t));
       if (STATUS_ORDER.includes(st)) stages.add(st);
     });
     // Every shoot is created at Planned by both creation paths, so that one is
@@ -330,8 +332,8 @@ function countByTypeAndStatus(shoots) {
     per[t.key] = { Planned: 0, Shot: 0, edited: 0, Posted: 0, total: 0 };
   });
   shoots.forEach(s => {
-    Object.entries(s.type_statuses || {}).forEach(([type, raw]) => {
-      const st = normStatus(raw);
+    Object.keys(s.type_statuses || {}).forEach(type => {
+      const st = normStatus(getTypeStatus(s, type));
       if (!per[type] || !STATUS_ORDER.includes(st)) return;
       per[type][st]++;
       per[type].total++;
@@ -752,13 +754,12 @@ function computeBreakdownMatrix(filteredShoots) {
   filteredShoots.forEach(s => {
     const depts = Array.isArray(s.departments) && s.departments.length ? s.departments : [NO_DEPT_LABEL];
     const types = (s.type || '').split(',').map(t => t.trim()).filter(Boolean);
-    const ts = s.type_statuses || {};
     types.forEach(t => {
-      const status = ts[t] || 'Planned';
-      if (!BREAKDOWN_STATUSES.includes(status)) return;
-      // Incremented once per (dept, type) instance — not once per shoot — so the grand
-      // total and column totals always equal the sum of the matrix cells they roll up.
+      // Each department's own status for this deliverable — no longer a single
+      // shared value fanned out to every department on the shoot.
       depts.forEach(d => {
+        const status = (depts.length === 1 && depts[0] === NO_DEPT_LABEL) ? (getTypeStatus(s, t) || 'Planned') : (getTypeStatus(s, t, d) || 'Planned');
+        if (!BREAKDOWN_STATUSES.includes(status)) return;
         if (!matrix[d]) matrix[d] = {};
         if (!matrix[d][t]) matrix[d][t] = emptyBreakdownCounts();
         matrix[d][t][status]++;
