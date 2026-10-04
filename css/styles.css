@@ -58,7 +58,10 @@
   --blur: saturate(140%) blur(20px);
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-7: 32px;
   --nav-h: 64px;
-  --top-h: 64px;
+  /* Includes the iOS status bar / notch inset so a fixed #top-bar (which draws
+     edge-to-edge under viewport-fit=cover) and everything positioned below it
+     clear the status bar instead of rendering underneath it. */
+  --top-h: calc(64px + env(safe-area-inset-top, 0px));
   --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
 }
 
@@ -349,6 +352,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  padding-top: env(safe-area-inset-top, 0px);
   z-index: 50;
 }
 @supports not (backdrop-filter: blur(1px)) {

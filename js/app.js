@@ -631,7 +631,7 @@ function setupChrome() {
 
   const openDrawer = (open) => {
     drawer.classList.toggle('is-open', open);
-    backdrop.classList.toggle('hidden', !open);
+    backdrop?.classList.toggle('hidden', !open);
     toggle?.setAttribute('aria-expanded', String(open));
   };
   const openMenu = (open) => {
@@ -691,8 +691,8 @@ function setupThemeToggle() {
 
   const syncIcons = () => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    moonIcon.classList.toggle('hidden', isDark);
-    sunIcon.classList.toggle('hidden', !isDark);
+    moonIcon?.classList.toggle('hidden', isDark);
+    sunIcon?.classList.toggle('hidden', !isDark);
     syncThemeLabel();
   };
   syncIcons();
@@ -1290,13 +1290,14 @@ function setupNotifBanner() {
 
   const hide = () => banner.classList.add('hidden');
   const show = (text, btnLabel) => {
+    if (!textEl || !actionBtn) return;
     textEl.textContent = text;
     actionBtn.textContent = btnLabel || '';
     actionBtn.classList.toggle('hidden', !btnLabel);
     banner.classList.remove('hidden');
   };
 
-  dismissBtn.addEventListener('click', () => {
+  dismissBtn?.addEventListener('click', () => {
     hide();
     try { sessionStorage.setItem('st_notif_dismissed', '1'); } catch {}
   });
