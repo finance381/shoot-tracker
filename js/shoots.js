@@ -43,6 +43,10 @@ function renderStepper(shootId, typeName, dept, currentStatus) {
 
 const DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
 const SHOOT_TYPES = ['Photo', 'Reel', 'Sales Video'];
+// "Pending (not posted)" means the work is done and only posting is left.
+// Planned and Shot are not waiting on a post — they are waiting on the shoot
+// and the edit — so only edited counts as pending.
+const PENDING_STATUS = 'edited';
 
 let filterMember = 'All';
 let filterStatus = 'All';
@@ -56,6 +60,17 @@ let filterDateDir = 'all';
 // Which department's status a multi-dept shoot card is currently showing — keyed by
 // shoot id, survives re-renders. Defaults to the shoot's first department.
 let activeDeptByShoot = {};
+// A card must open on a department that actually matches the status filter,
+// or it shows e.g. a Posted row under a "1 pending" chip. Tapping a dept tab
+// overrides that, until the filter itself changes.
+let deptPickedByUser = {};
+let deptPickKey = null;
+
+// The status a filter is asking each deliverable for, or null for no filter.
+function wantedStatus() {
+  if (filterStatus === 'All') return null;
+  return filterStatus === '__not_posted' ? PENDING_STATUS : filterStatus;
+}
 let venueDropdownOpen = false;
 let venueOutsideClickBound = false;
 let deptDropdownOpen = false;
@@ -113,6 +128,10 @@ export function resetFilters() {
 
 export async function render() {
   saveFilters();
+  // A dept tab the user tapped under one filter should not stick when they
+  // change the filter — the card has to reopen on what the new filter matches.
+  const pickKey = `${filterStatus}|${filterType}`;
+  if (pickKey !== deptPickKey) { deptPickKey = pickKey; deptPickedByUser = {}; }
   const myGen = ++renderGen;
   const el = container();
   if (!el.querySelector('.shoots-filter-row')) {
@@ -152,12 +171,16 @@ export async function render() {
       if (!(filterType in ts)) return false;
       const rolledUp = getTypeStatus(s, filterType);
       if (filterStatus === '__not_posted') {
-        if (rolledUp === 'Posted') return false;
+        if (rolledUp !== PENDING_STATUS) return false;
       } else if (filterStatus !== 'All' && rolledUp !== filterStatus) {
         return false;
       }
     } else if (filterStatus === '__not_posted') {
-      if (s.status === 'Posted') return false;
+      // The shoot's own status is its least-advanced deliverable, so ask the
+      // deliverables directly — one edited item is enough to be pending.
+      const ts = s.type_statuses || {};
+      const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
+      if (!statuses.includes(PENDING_STATUS)) return false;
     } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
       const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
@@ -421,15 +444,14 @@ function renderLocation(s) {
 // With a status filter on, a card should lead with the deliverables that actually
 // match it — e.g. under "Pending", show the unposted Sales Video, not the Photo
 // and Reel that are already done.
-function splitTypesByFilter(s, types) {
-  // Rollups across departments — independent of whichever dept tab a card has active.
+function splitTypesByFilter(s, types, activeDept) {
   if (filterType !== 'All') {
     return { shown: types.filter(t => t === filterType), rest: types.filter(t => t !== filterType) };
   }
-  if (filterStatus === 'All') return { shown: types, rest: [] };
-  const match = filterStatus === '__not_posted'
-    ? (t) => getTypeStatus(s, t) !== 'Posted'
-    : (t) => getTypeStatus(s, t) === filterStatus;
+  const wanted = wantedStatus();
+  if (!wanted) return { shown: types, rest: [] };
+  // Scoped to the department on screen, since that is the status the rows show.
+  const match = (t) => getTypeStatus(s, t, activeDept) === wanted;
   const shown = types.filter(match);
   const rest = types.filter(t => !match(t));
   // Never render an empty card: if nothing matched, fall back to everything.
@@ -573,6 +595,7 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
       const card = tag.closest('.shoot-card');
       if (!card) return;
       activeDeptByShoot[card.dataset.id] = tag.dataset.dept;
+      deptPickedByUser[card.dataset.id] = true;
       renderDateGrouped(el, filtered, allShoots, me, lastChangeMap);
     });
   });
@@ -590,6 +613,15 @@ function renderDateGroups(dates, grouped, me, lastChangeMap) {
   }).join('');
 }
 
+// Status changes logged before per-department tracking existed carry no
+// department, so a leaf nobody has touched since then still has a name — it
+// just lives under the dept-less key. Without this the "Last updated by" line
+// silently disappears on every multi-department card.
+function lastUpdatedBy(map, shootId, type, dept) {
+  if (!map) return undefined;
+  return map[`${shootId}::${type}::${dept || ''}`] || map[`${shootId}::${type}::`];
+}
+
 function renderShootCard(s, me, lastChangeMap) {
   const isMine = isAssigned(s, me?.id);
   const ts = s.type_statuses || {};
@@ -598,7 +630,14 @@ function renderShootCard(s, me, lastChangeMap) {
   const overall = getOverallStatus(s);
   const depts = s.departments || [];
   const multiDept = depts.length > 1;
-  if (multiDept && !depts.includes(activeDeptByShoot[s.id])) activeDeptByShoot[s.id] = depts[0];
+  if (multiDept) {
+    if (!depts.includes(activeDeptByShoot[s.id])) activeDeptByShoot[s.id] = depts[0];
+    const wanted = wantedStatus();
+    if (wanted && !deptPickedByUser[s.id]) {
+      const hit = depts.find(d => types.some(t => getTypeStatus(s, t, d) === wanted));
+      if (hit) activeDeptByShoot[s.id] = hit;
+    }
+  }
   const activeDept = multiDept ? activeDeptByShoot[s.id] : depts[0];
 
   return `
@@ -618,22 +657,21 @@ function renderShootCard(s, me, lastChangeMap) {
         </div>
         ${(() => {
           if (filterStatus === 'All' || types.length === 0) return '';
-          const n = filterStatus === '__not_posted'
-            ? types.filter(t => getTypeStatus(s, t) !== 'Posted').length
-            : types.filter(t => getTypeStatus(s, t) === filterStatus).length;
+          const wanted = wantedStatus();
+          const n = types.filter(t => getTypeStatus(s, t, activeDept) === wanted).length;
           if (!n) return '';
           const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
           return `<div class="pending-count-row"><span class="pending-count-chip">${n} ${word}</span></div>`;
         })()}
         ${multiDept ? `<div class="tag-row">${depts.map(d => `<span class="tag tag-dept clickable ${d === activeDept ? 'active' : ''}" data-dept="${d}">${d}</span>`).join('')}</div>` : ''}
         ${types.length > 0 ? (() => {
-          const { shown, rest } = splitTypesByFilter(s, types);
+          const { shown, rest } = splitTypesByFilter(s, types, activeDept);
           return `
           <div class="type-status-rows">
             ${shown.map(t => {
               const tStatus = getTypeStatus(s, t, activeDept);
               const iconMeta = TYPE_ICON_META[t] || DEFAULT_TYPE_ICON;
-              const lastBy = lastChangeMap?.[`${s.id}::${t}::${activeDept || ''}`];
+              const lastBy = lastUpdatedBy(lastChangeMap, s.id, t, activeDept);
               return `
                 <div class="type-status-row">
                   <span class="type-icon-circle" style="background:${iconMeta.bg};color:${iconMeta.color}">${iconMeta.icon}</span>
@@ -645,9 +683,7 @@ function renderShootCard(s, me, lastChangeMap) {
             }).join('')}
             ${rest.length ? `
               <div class="type-rest-note">
-                ${filterStatus === '__not_posted'
-                  ? `${CHECK_ICON}<span>${rest.join(', ')} already posted</span>`
-                  : `<span>${rest.map(t => `${t} · ${STATUS_LABEL[getTypeStatus(s, t)]}`).join('  ·  ')}</span>`}
+                <span>${rest.map(t => `${t} · ${STATUS_LABEL[getTypeStatus(s, t, activeDept)]}`).join('  ·  ')}</span>
               </div>` : ''}
           </div>`;
         })() : `
