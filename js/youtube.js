@@ -6,7 +6,11 @@ const container = () => document.getElementById('page-youtube');
 
 const SALES_VIDEO = 'Sales Video';
 const STATUS_LABEL = { Planned: 'Planned', Shot: 'Shot', edited: 'Edited', Posted: 'Posted' };
-const DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
+// YouTube is for Decor and Venue work only — Catering and Entertainment
+// shoots do not go up on the channel, so this tab leaves them out of both the
+// list and the Department filter.
+const DEPARTMENTS = ['Decor', 'Venue'];
+const YT_DEPTS = new Set(DEPARTMENTS);
 
 // One list of states, shown in full by the dropdown and as quick tabs for the
 // three headline ones. A sales video that is "Posted" in the edit pipeline is
@@ -81,14 +85,28 @@ const canPostToYouTube = (m) =>
 export function classifyRows(shoots, byShoot) {
   return (shoots || [])
     .filter(s => s.type_statuses && SALES_VIDEO in s.type_statuses)
+    // A shoot earns a place on YouTube only if its work covers something the
+    // channel actually wants — Decor or Venue. A Catering- or
+    // Entertainment-only shoot is skipped outright.
+    .filter(s => (s.departments || []).some(d => YT_DEPTS.has(d)))
     .map(s => {
       const rec = byShoot[s.id] || null;
-      // Least-advanced across departments — not ready to post until every
-      // department's copy of the sales video is actually Posted.
-      const videoStatus = getTypeStatus(s, SALES_VIDEO);
+      // Roll up across only the departments that matter here. A shoot whose
+      // Decor sales video is Posted is ready to go up even if its Catering
+      // copy is still being edited, since Catering never gets uploaded.
+      const relevantDepts = (s.departments || []).filter(d => YT_DEPTS.has(d));
+      const videoStatus = rollupSalesVideo(s, relevantDepts);
       const onYouTube = !!rec?.posted_at;
       return { shoot: s, rec, videoStatus, onYouTube, ready: videoStatus === 'Posted' && !onYouTube };
     });
+}
+
+function rollupSalesVideo(shoot, depts) {
+  if (!depts.length) return getTypeStatus(shoot, SALES_VIDEO);
+  const ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
+  const vals = depts.map(d => getTypeStatus(shoot, SALES_VIDEO, d)).filter(v => v != null);
+  if (!vals.length) return getTypeStatus(shoot, SALES_VIDEO);
+  return ORDER[Math.min(...vals.map(v => ORDER.indexOf(v)))];
 }
 
 const venueLabel = (v) => v.length === 0 ? 'All Venues'
@@ -316,6 +334,14 @@ function renderCard(r) {
               : '<button type="button" class="btn-primary yt-act" data-act="post">Posted on YouTube</button>'}
           </div>
           ${rec?.notes ? `<div class="type-last-editor">${esc(rec.notes)}</div>` : ''}
+          ${(() => {
+            // Only the departments this tab cares about — showing CATERING here
+            // would be misleading, since the YouTube filter has already removed
+            // Catering from the whole page.
+            const ytDepts = (s.departments || []).filter(d => YT_DEPTS.has(d));
+            if (!ytDepts.length) return '';
+            return `<div class="tag-row" style="margin-top:8px">${ytDepts.map(d => `<span class="tag tag-dept">${esc(d)}</span>`).join('')}</div>`;
+          })()}
         </div>
       </div>
     </div>`;
