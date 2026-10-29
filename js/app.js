@@ -429,6 +429,9 @@ function navigate(page, fromHistory = false) {
   exitArmed = false;
   clearTimeout(exitTimer);
   ensureGuard();
+  // Home is the root — nothing to go back to from there — so the button is
+  // hidden there and shown on every other tab.
+  document.getElementById('back-btn')?.classList.toggle('hidden', page === 'dashboard');
   renderGeneration++;
   const gen = renderGeneration;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -578,6 +581,23 @@ function closeTopmostLayer() {
   return false;
 }
 
+// Walk one step back: close any open overlay first, else pop the trail, else
+// land on Home. Shared by the top-bar button and the device back press so
+// both do exactly the same thing.
+function goBack(fromDeviceBack = false) {
+  if (closeTopmostLayer()) {
+    if (fromDeviceBack) ensureGuard();
+    return 'layer';
+  }
+  if (currentPage !== 'dashboard') {
+    const page = navStack.pop();
+    if (page && pages[page] && canSeeTab(page)) navigate(page, true);
+    else navigate('dashboard', true);
+    return 'back';
+  }
+  return 'home';   // already at Home; caller decides whether to prompt exit
+}
+
 function setupBackButton() {
   try { history.replaceState({ stRoot: true }, ''); } catch {}
   backLog('setup', 'len=' + history.length);
@@ -588,22 +608,18 @@ function setupBackButton() {
   document.addEventListener('pointerup', onInteraction, true);
   document.addEventListener('keyup', onInteraction, true);
 
+  // Top-bar back button — the only reliable path on an iOS installed PWA,
+  // where the OS gives no device back and swipe-from-edge does nothing in
+  // standalone mode.
+  document.getElementById('back-btn')?.addEventListener('click', () => {
+    backLog('back-btn', 'page=' + currentPage + ' trail=' + navStack.join(','));
+    goBack(false);
+  });
+
   window.addEventListener('popstate', () => {
     backLog('back', 'page=' + currentPage + ' state=' + JSON.stringify(history.state) + ' trail=' + navStack.join(','));
-    if (closeTopmostLayer()) {
-      // The layer ate the press; take our place back.
-      ensureGuard();
-      return;
-    }
-
-    // Home is where back stops, whether we walked here or the user tapped it.
-    if (currentPage !== 'dashboard') {
-      // Walk the trail we kept ourselves, else fall back to Home.
-      const page = navStack.pop();
-      if (page && pages[page] && canSeeTab(page)) navigate(page, true);
-      else navigate('dashboard', true);
-      return;
-    }
+    const result = goBack(true);
+    if (result !== 'home') return;
 
     if (exitArmed) return;   // already prompted; let this press through
 

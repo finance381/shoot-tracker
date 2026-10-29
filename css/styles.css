@@ -3526,6 +3526,20 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   flex-shrink: 0;
 }
 .nav-toggle:hover { border-color: var(--border-strong); }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.back-btn:hover { border-color: var(--border-strong); }
+.back-btn:active { transform: scale(.96); }
 .top-titles { min-width: 0; }
 
 /* --- drawer --- */
