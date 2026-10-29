@@ -28,12 +28,12 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  // Pending a post means edited and not out yet — the same thing the Shoots
-  // filter this card opens means by it, so the number and the list agree.
+  // Pending = anything not yet Posted (Planned, Shot and edited all count).
+  // Same meaning as the Shoots filter this card opens, so number and list agree.
   let pendingItems = 0;
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
-    Object.keys(ts).forEach(t => { if (getTypeStatus(s, t) === 'edited') pendingItems++; });
+    Object.keys(ts).forEach(t => { if (getTypeStatus(s, t) !== 'Posted') pendingItems++; });
   });
   const posted   = shoots.filter(s => s.status === 'Posted');
   const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };

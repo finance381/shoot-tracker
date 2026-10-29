@@ -43,10 +43,10 @@ function renderStepper(shootId, typeName, dept, currentStatus) {
 
 const DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
 const SHOOT_TYPES = ['Photo', 'Reel', 'Sales Video'];
-// "Pending (not posted)" means the work is done and only posting is left.
-// Planned and Shot are not waiting on a post — they are waiting on the shoot
-// and the edit — so only edited counts as pending.
-const PENDING_STATUS = 'edited';
+// "Pending (not posted)" covers everything that has not reached Posted yet —
+// Planned, Shot and edited all qualify. A deliverable stops being pending the
+// moment it is Posted.
+function isPending(status) { return status != null && status !== 'Posted'; }
 
 let filterMember = 'All';
 let filterStatus = 'All';
@@ -66,11 +66,15 @@ let activeDeptByShoot = {};
 let deptPickedByUser = {};
 let deptPickKey = null;
 
-// The status a filter is asking each deliverable for, or null for no filter.
-function wantedStatus() {
-  if (filterStatus === 'All') return null;
-  return filterStatus === '__not_posted' ? PENDING_STATUS : filterStatus;
+// Does this deliverable match the current filter? True under 'All', pending
+// under 'Pending (not posted)', or an exact match under a specific status.
+function matchesStatusFilter(status) {
+  if (filterStatus === 'All') return true;
+  if (filterStatus === '__not_posted') return isPending(status);
+  return status === filterStatus;
 }
+// True whenever a status filter is active, so a card knows to look for it.
+function hasStatusFilter() { return filterStatus !== 'All'; }
 let venueDropdownOpen = false;
 let venueOutsideClickBound = false;
 let deptDropdownOpen = false;
@@ -170,17 +174,13 @@ export async function render() {
       const ts = s.type_statuses || {};
       if (!(filterType in ts)) return false;
       const rolledUp = getTypeStatus(s, filterType);
-      if (filterStatus === '__not_posted') {
-        if (rolledUp !== PENDING_STATUS) return false;
-      } else if (filterStatus !== 'All' && rolledUp !== filterStatus) {
-        return false;
-      }
+      if (!matchesStatusFilter(rolledUp)) return false;
     } else if (filterStatus === '__not_posted') {
-      // The shoot's own status is its least-advanced deliverable, so ask the
-      // deliverables directly — one edited item is enough to be pending.
+      // One not-yet-Posted deliverable is enough; the shoot's own status is a
+      // rollup we would otherwise be relying on and we want the per-leaf truth.
       const ts = s.type_statuses || {};
       const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
-      if (!statuses.includes(PENDING_STATUS)) return false;
+      if (!statuses.some(isPending)) return false;
     } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
       const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
@@ -448,10 +448,9 @@ function splitTypesByFilter(s, types, activeDept) {
   if (filterType !== 'All') {
     return { shown: types.filter(t => t === filterType), rest: types.filter(t => t !== filterType) };
   }
-  const wanted = wantedStatus();
-  if (!wanted) return { shown: types, rest: [] };
+  if (!hasStatusFilter()) return { shown: types, rest: [] };
   // Scoped to the department on screen, since that is the status the rows show.
-  const match = (t) => getTypeStatus(s, t, activeDept) === wanted;
+  const match = (t) => matchesStatusFilter(getTypeStatus(s, t, activeDept));
   const shown = types.filter(match);
   const rest = types.filter(t => !match(t));
   // Never render an empty card: if nothing matched, fall back to everything.
@@ -632,9 +631,8 @@ function renderShootCard(s, me, lastChangeMap) {
   const multiDept = depts.length > 1;
   if (multiDept) {
     if (!depts.includes(activeDeptByShoot[s.id])) activeDeptByShoot[s.id] = depts[0];
-    const wanted = wantedStatus();
-    if (wanted && !deptPickedByUser[s.id]) {
-      const hit = depts.find(d => types.some(t => getTypeStatus(s, t, d) === wanted));
+    if (hasStatusFilter() && !deptPickedByUser[s.id]) {
+      const hit = depts.find(d => types.some(t => matchesStatusFilter(getTypeStatus(s, t, d))));
       if (hit) activeDeptByShoot[s.id] = hit;
     }
   }
@@ -657,8 +655,7 @@ function renderShootCard(s, me, lastChangeMap) {
         </div>
         ${(() => {
           if (filterStatus === 'All' || types.length === 0) return '';
-          const wanted = wantedStatus();
-          const n = types.filter(t => getTypeStatus(s, t, activeDept) === wanted).length;
+          const n = types.filter(t => matchesStatusFilter(getTypeStatus(s, t, activeDept))).length;
           if (!n) return '';
           const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
           return `<div class="pending-count-row"><span class="pending-count-chip">${n} ${word}</span></div>`;
