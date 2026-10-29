@@ -28,12 +28,16 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  // Pending = anything not yet Posted (Planned, Shot and edited all count).
-  // Same meaning as the Shoots filter this card opens, so number and list agree.
+  // Pending = the shoot is done but not yet out: Shot or edited. Planned work
+  // is waiting on the shoot itself, not on being posted. Matches the Shoots
+  // filter this card opens, so the number and the list agree.
   let pendingItems = 0;
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
-    Object.keys(ts).forEach(t => { if (getTypeStatus(s, t) !== 'Posted') pendingItems++; });
+    Object.keys(ts).forEach(t => {
+      const st = getTypeStatus(s, t);
+      if (st === 'Shot' || st === 'edited') pendingItems++;
+    });
   });
   const posted   = shoots.filter(s => s.status === 'Posted');
   const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };

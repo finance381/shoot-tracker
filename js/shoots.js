@@ -43,10 +43,11 @@ function renderStepper(shootId, typeName, dept, currentStatus) {
 
 const DEPARTMENTS = ['Decor', 'Catering', 'Entertainment', 'Venue'];
 const SHOOT_TYPES = ['Photo', 'Reel', 'Sales Video'];
-// "Pending (not posted)" covers everything that has not reached Posted yet —
-// Planned, Shot and edited all qualify. A deliverable stops being pending the
-// moment it is Posted.
-function isPending(status) { return status != null && status !== 'Posted'; }
+// "Pending (not posted)" starts the moment the shoot is actually done, which
+// is Shot — a Planned deliverable is waiting on the shoot, not the post. A
+// deliverable stays pending through Shot and edited and leaves the moment it
+// reaches Posted.
+function isPending(status) { return status === 'Shot' || status === 'edited'; }
 
 let filterMember = 'All';
 let filterStatus = 'All';
