@@ -805,6 +805,7 @@ function setupShootModal() {
   const close = () => { overlay.classList.add('hidden'); editedShoot = null; isOpening = false; };
 
   document.getElementById('modal-close').addEventListener('click', close);
+  document.getElementById('modal-back')?.addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay && Date.now() - openedAt > 300) close();
