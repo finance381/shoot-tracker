@@ -4,6 +4,9 @@ import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
 import { STATUS_ORDER, STATUS_LABEL, STATUS_COLOR, getTypeStatus, getOverallStatus, setDeptStatus } from './shoot-status.js';
 
+// filterSearch is user-typed and goes back into an attribute, so escape it.
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 async function logStatusChange(shootId, typeName, department, fromStatus, toStatus) {
   const me = getMember();
   if (!me) return;
@@ -224,7 +227,7 @@ export async function render() {
     <div class="shoots-filter-row">
       <div class="search-bar-wrap">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="shoot-search" class="shoot-search" placeholder="Search function, assignee, venue…" value="${filterSearch}">
+        <input type="text" id="shoot-search" class="shoot-search" placeholder="Search function, assignee, venue…" value="${esc(filterSearch)}">
       </div>
       <select id="filter-assignee" class="filter-select">
         <option value="All" ${filterMember === 'All' ? 'selected' : ''}>All Assignees</option>

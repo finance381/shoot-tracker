@@ -8,6 +8,7 @@ const SHELL_FILES = [
   './js/supabase.js',
   './js/auth.js',
   './js/app.js',
+  './js/assignees.js', // imported by app, shoots and requests; offline boot fails without it
   './js/dashboard.js',
   './js/calendar.js',
   './js/shoots.js',

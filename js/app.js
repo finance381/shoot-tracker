@@ -822,6 +822,8 @@ function setupShootModal() {
     try {
     titleEl.textContent = isEdit ? 'Edit Shoot' : 'New Shoot';
     statusGroup.style.display = isEdit ? 'block' : 'none';
+    // Only the edit branch fills this, so clear it or New Shoot shows the last shoot's log.
+    document.getElementById('s-audit-log').innerHTML = '';
     deleteBtn.classList.toggle('hidden', !isEdit);
 
     document.getElementById('s-date').value  = shoot?.date || defaults.date || new Date().toISOString().slice(0, 10);

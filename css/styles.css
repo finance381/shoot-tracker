@@ -320,7 +320,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--danger);
-  border: 1.5px solid rgba(192,57,43,.35);
+  border: 1.5px solid color-mix(in srgb, var(--danger) 35%, transparent);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -2910,6 +2910,8 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   justify-content: space-between;
   z-index: 10;
 }
+/* Hardcoded cream surfaces need explicit dark counterparts. */
+:root[data-theme="dark"] .req-app-header { background: rgba(34,29,24,0.85); }
 @supports not (backdrop-filter: blur(1px)) {
   .req-app-header { background: var(--surface-solid); }
 }
@@ -3034,6 +3036,9 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   background: rgba(255,253,249,0.55); color: var(--espresso); font-size: 15px;
   font-family: var(--font); outline: none; transition: border-color .2s, box-shadow .2s;
 }
+:root[data-theme="dark"] .req-form-group input,
+:root[data-theme="dark"] .req-form-group select,
+:root[data-theme="dark"] .req-form-group textarea { background: rgba(34,29,24,0.55); }
 .req-form-group input:focus,
 .req-form-group select:focus,
 .req-form-group textarea:focus {
@@ -3115,6 +3120,7 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
   outline: none;
   transition: border-color .2s, box-shadow .2s;
 }
+:root[data-theme="dark"] .req-search-input { background: rgba(34,29,24,0.7); }
 .req-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .req-list-by {
   font-size: 12px;

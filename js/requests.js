@@ -3,6 +3,9 @@ import { assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { getDeptStatuses } from './shoot-status.js';
 
+// filterSearch is user-typed and goes back into an attribute, so escape it.
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 const STATUS_ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
 let renderGen = 0;
 let filterTab = 'pending';
@@ -145,7 +148,7 @@ export async function render() {
     <div class="shoots-filter-row">
       <div class="search-bar-wrap">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="req-search" class="shoot-search" placeholder="Search function, requester, venue…" value="${filterSearch}">
+        <input type="text" id="req-search" class="shoot-search" placeholder="Search function, requester, venue…" value="${esc(filterSearch)}">
       </div>
       <div class="venue-multiselect req-dept-multiselect">
         <button type="button" id="req-dept-btn" class="filter-select venue-select-btn">

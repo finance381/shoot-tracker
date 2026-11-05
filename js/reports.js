@@ -797,7 +797,7 @@ function renderBreakdownHeader(grandTotals) {
   return `
     <div class="breakdown-header-row">
       <p class="section-title" style="margin:0">Shoot Breakdown</p>
-      <span class="breakdown-totals-line"><strong>${grandTotals.shootCount ?? 0} shoot${grandTotals.shootCount === 1 ? '' : 's'}</strong> · ${grandTotals.total} deliverables · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Editing · ${grandTotals.Posted} Posted</span>
+      <span class="breakdown-totals-line"><strong>${grandTotals.shootCount ?? 0} shoot${grandTotals.shootCount === 1 ? '' : 's'}</strong> · ${grandTotals.total} deliverables · ${grandTotals.Planned} Planned · ${grandTotals.Shot} Shot · ${grandTotals.edited} Edited · ${grandTotals.Posted} Posted</span>
     </div>
   `;
 }
