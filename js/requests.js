@@ -608,13 +608,24 @@ async function openAcceptModal(req, team) {
         const newDepts = Array.isArray(depts) ? depts : [];
         const mergedDepts = [...new Set([...existingDepts, ...newDepts])];
 
-        // Every (type, dept) pair on the merged shoot needs a status: keep what's
-        // already there (normalizing any legacy flat value against the shoot's old
-        // departments), default newly-added types/departments to Planned.
+        // Start from the match's existing map; normalize any legacy flat-string
+        // value into the explicit per-dept form so later edits stay consistent.
         const mergedTS = {};
-        [...new Set([...existingTypes, ...types])].forEach(t => {
+        existingTypes.forEach(t => {
           const existingForType = getDeptStatuses(match, t);
-          mergedTS[t] = Object.fromEntries(mergedDepts.map(d => [d, existingForType[d] || 'Planned']));
+          mergedTS[t] = { ...existingForType };
+        });
+
+        // Add only the (type, dept) pairs the incoming request asked for. Existing
+        // cells are untouched; new depts on existing types are NOT added unless the
+        // request's own `depts` lists them for this type.
+        types.forEach(t => {
+          mergedTS[t] = mergedTS[t] || {};
+          depts.forEach(d => {
+            if (!(d in mergedTS[t])) {
+              mergedTS[t][d] = 'Planned';
+            }
+          });
         });
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');

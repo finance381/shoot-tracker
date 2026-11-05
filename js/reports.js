@@ -411,12 +411,30 @@ function computeDeptTypeCounts(shoots, logs, memberId) {
   filtered.forEach(s => {
     const depts = (s.departments || []).map(raw => DEPARTMENTS.find(d => d.toLowerCase() === String(raw).toLowerCase())).filter(Boolean);
     const ts = s.type_statuses || {};
-    Object.keys(ts).forEach(t => {
+    const tsKeys = Object.keys(ts);
+
+    if (!tsKeys.length) {
+      // Legacy shoot: credit every dept with every CSV type.
+      const legacyTypes = (s.type || '').split(',').map(t => t.trim()).filter(Boolean);
+      legacyTypes.forEach(t => {
+        if (!SHOOT_TYPES.includes(t)) return;
+        depts.forEach(d => { counts[d][t]++; counts[d].total++; });
+      });
+      depts.forEach(d => { counts[d].shootCount++; });
+      return;
+    }
+
+    const touchedDepts = new Set();
+    tsKeys.forEach(t => {
       if (!SHOOT_TYPES.includes(t)) return;
-      depts.forEach(d => { counts[d][t]++; counts[d].total++; });
+      depts.forEach(d => {
+        if (getTypeStatus(s, t, d) === undefined) return;
+        counts[d][t]++;
+        counts[d].total++;
+        touchedDepts.add(d);
+      });
     });
-    // A shoot happens once — count it once per department regardless of how many types it has.
-    depts.forEach(d => { counts[d].shootCount++; });
+    touchedDepts.forEach(d => { counts[d].shootCount++; });
   });
 
   const columnTotals = { Photo: 0, Reel: 0, 'Sales Video': 0, total: 0, shootCount: 0 };

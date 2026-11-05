@@ -585,12 +585,21 @@ function renderDayPanel(panel, all, team) {
     <div class="req-day-head">${heading}<span class="req-day-count">${shoots.length} ${shoots.length === 1 ? 'shoot' : 'shoots'}</span></div>
     ${shoots.map(s => {
       const ts = s.type_statuses || {};
-      const types = Object.keys(ts).length > 0
-        ? Object.keys(ts).filter(t => !myDept || getTypeStatus(s, t, myDept) !== undefined).map(t => {
+      const tsKeys = Object.keys(ts);
+      let types;
+      if (tsKeys.length > 0) {
+        const applicable = tsKeys.filter(t => !myDept || getTypeStatus(s, t, myDept) !== undefined);
+        if (applicable.length === 0) {
+          types = `<span class="tag" style="opacity:.55">No deliverables for your department</span>`;
+        } else {
+          types = applicable.map(t => {
             const st = (myDept && getTypeStatus(s, t, myDept)) || getTypeStatus(s, t);
             return `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`;
-          }).join('')
-        : (s.type || '').split(',').filter(Boolean).map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+          }).join('');
+        }
+      } else {
+        types = (s.type || '').split(',').filter(Boolean).map(t => `<span class="tag tag-type">${t.trim()}</span>`).join('');
+      }
       const loc = s.location_type === 'outdoor' ? (s.outdoor_venue || 'Outdoor') : (s.location || '');
       return `
         <div class="day-shoot-card border-${s.status} is-readonly">

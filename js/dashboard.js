@@ -28,17 +28,14 @@ export async function render() {
   const team = teamRes.data || [];
 
   const thisWeek = shoots.filter(s => s.date >= today && s.date <= weekEnd);
-  // Pending = the shoot is done but not yet out: Shot or edited. Planned work
-  // is waiting on the shoot itself, not on being posted. Matches the Shoots
-  // filter this card opens, so the number and the list agree.
+  // Pending post = shoots that have at least one Shot or edited leaf. Matches the Shoots page filter this tile opens.
   let pendingItems = 0;
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
-    Object.keys(ts).forEach(t => {
-      Object.values(getDeptStatuses(s, t)).forEach(st => {
-        if (st === 'Shot' || st === 'edited') pendingItems++;
-      });
-    });
+    const anyPending = Object.keys(ts).some(t =>
+      Object.values(getDeptStatuses(s, t)).some(st => st === 'Shot' || st === 'edited')
+    );
+    if (anyPending) pendingItems++;
   });
   const posted   = shoots.filter(s => s.status === 'Posted');
   const postedByType = { Photo: 0, Reel: 0, 'Sales Video': 0 };
@@ -46,9 +43,8 @@ export async function render() {
     const ts = s.type_statuses || {};
     Object.keys(ts).forEach(t => {
       if (!(t in postedByType)) return;
-      Object.values(getDeptStatuses(s, t)).forEach(st => {
-        if (st === 'Posted') postedByType[t]++;
-      });
+      const hasPosted = Object.values(getDeptStatuses(s, t)).some(st => st === 'Posted');
+      if (hasPosted) postedByType[t]++;
     });
   });
   const upcoming = shoots

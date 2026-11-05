@@ -688,14 +688,20 @@ function renderShootCard(s, me, lastChangeMap) {
                 <span>${rest.map(t => `${t} · ${STATUS_LABEL[getTypeStatus(s, t, activeDept)]}`).join('  ·  ')}</span>
               </div>` : ''}
           </div>`;
-        })() : `
+        })() : (types.length === 0 ? `
           <div class="type-status-rows">
             <div class="type-status-row">
               <span class="type-name">${s.type || '—'}</span>
               <span class="status-chip status-${s.status}">${STATUS_LABEL[s.status] || s.status}</span>
             </div>
           </div>
-        `}
+        ` : `
+          <div class="type-status-rows">
+            <div class="type-status-row">
+              <span class="type-name" style="opacity:.55">No deliverables for ${activeDept}</span>
+            </div>
+          </div>
+        `)}
         ${!multiDept && depts.length ? `<div class="tag-row" style="margin-top:6px">${depts.map(d => `<span class="tag tag-dept">${d}</span>`).join('')}</div>` : ''}
       </div>
     </div>
