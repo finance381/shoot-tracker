@@ -413,7 +413,7 @@ async function openAcceptModal(req, team) {
         </div>
 
         <div class="form-group">
-          <label>For Department</label>
+          <label>For Department *</label>
           <div id="acc-dept-checks" class="checkbox-group">
             ${departments.map(d => `
               <label class="check-label">
@@ -616,11 +616,13 @@ async function openAcceptModal(req, team) {
         const mergedTS = {};
         existingTypes.forEach(t => {
           const existingForType = getDeptStatuses(match, t);
-          if (Object.keys(existingForType).length === 0 && existingDepts.length > 0) {
+          if (Object.keys(existingForType).length === 0) {
             // Legacy CSV type with no type_statuses entry — hydrate against the
-            // shoot's existing departments at Planned so the deliverable survives
-            // the merge and logStatusChanges records the null→Planned transitions.
-            mergedTS[t] = Object.fromEntries(existingDepts.map(d => [d, 'Planned']));
+            // existing departments (or the merged set if the old shoot had none)
+            // at Planned so the deliverable survives the merge and
+            // logStatusChanges records the null→Planned transitions.
+            const seedDepts = existingDepts.length > 0 ? existingDepts : mergedDepts;
+            mergedTS[t] = Object.fromEntries(seedDepts.map(d => [d, 'Planned']));
           } else {
             mergedTS[t] = { ...existingForType };
           }
