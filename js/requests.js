@@ -568,6 +568,11 @@ async function openAcceptModal(req, team) {
 
     const deptChecks = overlay.querySelectorAll('#acc-dept-checks input:checked');
     const depts = Array.from(deptChecks).map(c => c.value);
+    if (!depts.length) {
+      errEl.textContent = 'Select at least one department';
+      errEl.classList.remove('hidden');
+      return;
+    }
 
     const locVal = locSel.value;
     const location_type = locVal === '__outdoor' ? 'outdoor' : 'indoor';
@@ -611,7 +616,14 @@ async function openAcceptModal(req, team) {
         const mergedTS = {};
         existingTypes.forEach(t => {
           const existingForType = getDeptStatuses(match, t);
-          mergedTS[t] = { ...existingForType };
+          if (Object.keys(existingForType).length === 0 && existingDepts.length > 0) {
+            // Legacy CSV type with no type_statuses entry — hydrate against the
+            // shoot's existing departments at Planned so the deliverable survives
+            // the merge and logStatusChanges records the null→Planned transitions.
+            mergedTS[t] = Object.fromEntries(existingDepts.map(d => [d, 'Planned']));
+          } else {
+            mergedTS[t] = { ...existingForType };
+          }
         });
 
         // Add only the (type, dept) pairs the incoming request asked for. Existing
