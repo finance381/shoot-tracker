@@ -3705,3 +3705,12 @@ input, select, textarea, button { font-family: var(--font); font-size: 15px; }
 @media (min-width: 1024px) {
   .nav-toggle, .nav-drawer, .nav-backdrop { display: none !important; }
 }
+
+/* Per-department deliverable chips */
+.per-dept-type-list { display: flex; flex-direction: column; gap: 12px; }
+.per-dept-type-block { display: flex; flex-direction: column; gap: 6px; }
+.per-dept-type-block .per-dept-type-heading {
+  font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-2); font-weight: 600;
+}
+.per-dept-type-block .checkbox-group { margin: 0; }

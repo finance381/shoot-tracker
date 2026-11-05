@@ -890,17 +890,8 @@ function setupShootModal() {
     const datalist = document.getElementById('s-external-suggestions');
     datalist.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
 
-    // Type checkboxes
-    const shootTypes = masters.filter(m => m.type === 'shoot_type');
-    const selectedTypes = (shoot?.type || '').split(',').map(t => t.trim()).filter(Boolean);
-    document.getElementById('s-type-checks').innerHTML = shootTypes.map(t => `
-      <label class="check-label">
-        <input type="checkbox" value="${t.label}" ${selectedTypes.includes(t.label) ? 'checked' : ''}>
-        <span>${t.label}</span>
-      </label>
-    `).join('');
-
     // Department checkboxes
+    const shootTypes = masters.filter(m => m.type === 'shoot_type');
     const departments = masters.filter(m => m.type === 'department');
     const selectedDepts = shoot?.departments || [];
     document.getElementById('s-dept-checks').innerHTML = departments.map(d => `
@@ -909,6 +900,49 @@ function setupShootModal() {
         <span>${d.label}</span>
       </label>
     `).join('');
+
+    // Per-department deliverable chips. `ticked` maps dept -> array of checked type labels.
+    const perDeptHost = document.getElementById('s-type-per-dept');
+    const renderPerDeptTypes = (depts, ticked) => {
+      perDeptHost.innerHTML = depts.map(d => `
+        <div class="per-dept-type-block" data-dept="${d}">
+          <div class="per-dept-type-heading">${d}</div>
+          <div class="checkbox-group" data-dept-types="${d}">
+            ${shootTypes.map(t => `
+              <label class="check-label">
+                <input type="checkbox" value="${t.label}" data-dept="${d}" ${(ticked[d] || []).includes(t.label) ? 'checked' : ''}>
+                <span>${t.label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    };
+
+    // Initial ticks: per-cell where type_statuses is an object, else legacy CSV.
+    const csvTypes = (shoot?.type || '').split(',').map(t => t.trim()).filter(Boolean);
+    const initialTicked = {};
+    selectedDepts.forEach(d => {
+      initialTicked[d] = shootTypes.map(t => t.label).filter(tl => {
+        const cell = shoot?.type_statuses?.[tl];
+        if (cell && typeof cell === 'object') return cell[d] !== undefined;
+        return csvTypes.includes(tl);
+      });
+    });
+    renderPerDeptTypes(selectedDepts, initialTicked);
+
+    document.querySelectorAll('#s-dept-checks input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const nowDepts = Array.from(document.querySelectorAll('#s-dept-checks input:checked')).map(c => c.value);
+        const prev = {};
+        perDeptHost.querySelectorAll('.per-dept-type-block').forEach(block => {
+          prev[block.dataset.dept] = Array.from(block.querySelectorAll('input:checked')).map(c => c.value);
+        });
+        const next = {};
+        nowDepts.forEach(d => { next[d] = d in prev ? prev[d] : shootTypes.map(t => t.label); });
+        renderPerDeptTypes(nowDepts, next);
+      });
+    });
 
     // Location
     const locations = masters.filter(m => m.type === 'location');
@@ -1015,9 +1049,6 @@ function setupShootModal() {
     if (!date) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!client) { alert('Please enter a function name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
 
-    const typeChecks = document.querySelectorAll('#s-type-checks input:checked');
-    const type = Array.from(typeChecks).map(c => c.value).join(',');
-    if (!type) { alert('Select at least one type'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!requested_by) { alert('Please enter Requested By (Sales Person)'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (!picked.length) { alert('Please select at least one assignee'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
     if (wantsExternal && !external_assignee) { alert('Please enter the external person\'s name'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
@@ -1025,6 +1056,19 @@ function setupShootModal() {
     const deptChecks = document.querySelectorAll('#s-dept-checks input:checked');
     const departments = Array.from(deptChecks).map(c => c.value);
     if (departments.length === 0) { alert('Please select at least one department'); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+
+    // Per-dept: { [dept]: [typeNames...] } from the ticked boxes in each block
+    const perDeptTypes = {};
+    departments.forEach(d => {
+      const block = document.querySelector(`#s-type-per-dept .per-dept-type-block[data-dept="${d}"]`);
+      perDeptTypes[d] = block ? Array.from(block.querySelectorAll('input:checked')).map(c => c.value) : [];
+    });
+    for (const d of departments) {
+      if (!perDeptTypes[d].length) { alert(`Select at least one deliverable for ${d}`); saveBtn.disabled = false; saveBtn.textContent = 'Save'; return; }
+    }
+    // Union across depts -> legacy shoot-wide `type` CSV
+    const types = [...new Set(departments.flatMap(d => perDeptTypes[d]))];
+    const type = types.join(',');
 
     const locationSel = document.getElementById('s-location');
     const locVal = locationSel.value;
@@ -1044,26 +1088,24 @@ function setupShootModal() {
       userChangedStatus = status !== editedShoot.status;
     }
 
-    const types = type.split(',').map(t => t.trim()).filter(Boolean);
-    // Each type's status is tracked per department — bulk-editing the status bar here
-    // sets every department to the same stage; per-department divergence is set later
-    // from the stepper on the Shoots tab.
+    // Only (type, dept) cells that are ticked get written; the rest are not applicable.
     let type_statuses = {};
-    if (editedShoot && editedShoot.type_statuses) {
-      types.forEach(t => {
-        if (userChangedStatus) {
-          // User explicitly changed the status bar → bulk apply to all departments
-          type_statuses[t] = Object.fromEntries(departments.map(d => [d, status]));
+    types.forEach(t => {
+      type_statuses[t] = {};
+      departments.forEach(d => {
+        if (!perDeptTypes[d].includes(t)) return;
+        if (editedShoot && editedShoot.type_statuses) {
+          if (userChangedStatus) {
+            type_statuses[t][d] = status;
+          } else {
+            const existing = getDeptStatuses(editedShoot, t);
+            type_statuses[t][d] = existing[d] || status;
+          }
         } else {
-          // Status bar untouched → preserve existing per-dept statuses; new
-          // departments/types default to the overall status.
-          const existing = getDeptStatuses(editedShoot, t);
-          type_statuses[t] = Object.fromEntries(departments.map(d => [d, existing[d] || status]));
+          type_statuses[t][d] = status;
         }
       });
-    } else {
-      types.forEach(t => { type_statuses[t] = Object.fromEntries(departments.map(d => [d, status])); });
-    }
+    });
 
     const overallStatus = editedShoot
       ? getOverallStatus({ type_statuses, departments })
@@ -1093,6 +1135,28 @@ function setupShootModal() {
               from_status: oldDeptStatuses[d] || null,
               to_status: newDeptStatuses[d]
             });
+          }
+        }
+      }
+
+      // Cells that existed before but were unticked now are logged as removed
+      {
+        const oldTS = editedShoot.type_statuses || {};
+        for (const t of Object.keys(oldTS)) {
+          const oldDeptStatuses = getDeptStatuses(editedShoot, t);
+          const newDeptStatuses = (type_statuses || {})[t] || {};
+          for (const d of Object.keys(oldDeptStatuses)) {
+            if (oldDeptStatuses[d] && !(d in newDeptStatuses)) {
+              await supabase.from('audit_log').insert({
+                shoot_id: editedShoot.id,
+                member_id: me?.id,
+                member_name: me?.name || 'Unknown',
+                type_name: t,
+                department: d,
+                from_status: oldDeptStatuses[d],
+                to_status: 'removed'
+              });
+            }
           }
         }
       }

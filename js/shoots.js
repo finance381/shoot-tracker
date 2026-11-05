@@ -641,6 +641,7 @@ function renderShootCard(s, me, lastChangeMap) {
     }
   }
   const activeDept = multiDept ? activeDeptByShoot[s.id] : depts[0];
+  const typesForActiveDept = types.filter(t => getTypeStatus(s, t, activeDept) !== undefined);
 
   return `
     <div class="shoot-card ${isMine ? 'shoot-mine' : ''} border-${overall}" data-id="${s.id}">
@@ -658,15 +659,15 @@ function renderShootCard(s, me, lastChangeMap) {
           </div>
         </div>
         ${(() => {
-          if (filterStatus === 'All' || types.length === 0) return '';
-          const n = types.filter(t => matchesStatusFilter(getTypeStatus(s, t, activeDept))).length;
+          if (filterStatus === 'All' || typesForActiveDept.length === 0) return '';
+          const n = typesForActiveDept.filter(t => matchesStatusFilter(getTypeStatus(s, t, activeDept))).length;
           if (!n) return '';
           const word = filterStatus === '__not_posted' ? 'pending' : STATUS_LABEL[filterStatus].toLowerCase();
           return `<div class="pending-count-row"><span class="pending-count-chip">${n} ${word}</span></div>`;
         })()}
         ${multiDept ? `<div class="tag-row">${depts.map(d => `<span class="tag tag-dept clickable ${d === activeDept ? 'active' : ''}" data-dept="${d}">${d}</span>`).join('')}</div>` : ''}
-        ${types.length > 0 ? (() => {
-          const { shown, rest } = splitTypesByFilter(s, types, activeDept);
+        ${typesForActiveDept.length > 0 ? (() => {
+          const { shown, rest } = splitTypesByFilter(s, typesForActiveDept, activeDept);
           return `
           <div class="type-status-rows">
             ${shown.map(t => {

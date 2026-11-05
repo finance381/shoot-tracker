@@ -753,12 +753,19 @@ function computeBreakdownMatrix(filteredShoots) {
 
   filteredShoots.forEach(s => {
     const depts = Array.isArray(s.departments) && s.departments.length ? s.departments : [NO_DEPT_LABEL];
-    const types = (s.type || '').split(',').map(t => t.trim()).filter(Boolean);
+    const noDept = depts.length === 1 && depts[0] === NO_DEPT_LABEL;
+    const tsKeys = Object.keys(s.type_statuses || {});
+    // Legacy shoots with no type_statuses fall back to the type CSV and default to Planned;
+    // otherwise only cells that genuinely exist on the shoot are counted.
+    const legacy = !tsKeys.length;
+    const types = legacy ? (s.type || '').split(',').map(t => t.trim()).filter(Boolean) : tsKeys;
     types.forEach(t => {
-      // Each department's own status for this deliverable — no longer a single
-      // shared value fanned out to every department on the shoot.
       depts.forEach(d => {
-        const status = (depts.length === 1 && depts[0] === NO_DEPT_LABEL) ? (getTypeStatus(s, t) || 'Planned') : (getTypeStatus(s, t, d) || 'Planned');
+        let status = noDept ? getTypeStatus(s, t) : getTypeStatus(s, t, d);
+        if (status === undefined) {
+          if (!legacy) return; // (t, d) does not apply to this shoot
+          status = 'Planned';
+        }
         if (!BREAKDOWN_STATUSES.includes(status)) return;
         if (!matrix[d]) matrix[d] = {};
         if (!matrix[d][t]) matrix[d][t] = emptyBreakdownCounts();
