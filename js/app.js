@@ -903,7 +903,10 @@ function setupShootModal() {
 
     // Per-department deliverable chips. `ticked` maps dept -> array of checked type labels.
     const perDeptHost = document.getElementById('s-type-per-dept');
+    const perDeptCache = {};
     const renderPerDeptTypes = (depts, ticked) => {
+      // Cache reflects the latest intent for every dept ever shown.
+      Object.keys(ticked).forEach(d => { perDeptCache[d] = ticked[d]; });
       perDeptHost.innerHTML = depts.map(d => `
         <div class="per-dept-type-block" data-dept="${d}">
           <div class="per-dept-type-heading">${d}</div>
@@ -934,12 +937,17 @@ function setupShootModal() {
     document.querySelectorAll('#s-dept-checks input').forEach(cb => {
       cb.addEventListener('change', () => {
         const nowDepts = Array.from(document.querySelectorAll('#s-dept-checks input:checked')).map(c => c.value);
-        const prev = {};
+        const fromDom = {};
         perDeptHost.querySelectorAll('.per-dept-type-block').forEach(block => {
-          prev[block.dataset.dept] = Array.from(block.querySelectorAll('input:checked')).map(c => c.value);
+          fromDom[block.dataset.dept] = Array.from(block.querySelectorAll('input:checked')).map(c => c.value);
         });
+        Object.keys(fromDom).forEach(d => { perDeptCache[d] = fromDom[d]; });
         const next = {};
-        nowDepts.forEach(d => { next[d] = d in prev ? prev[d] : shootTypes.map(t => t.label); });
+        nowDepts.forEach(d => {
+          if (d in fromDom) next[d] = fromDom[d];
+          else if (d in perDeptCache) next[d] = perDeptCache[d];
+          else next[d] = shootTypes.map(t => t.label);
+        });
         renderPerDeptTypes(nowDepts, next);
       });
     });
@@ -1146,6 +1154,7 @@ function setupShootModal() {
           const oldDeptStatuses = getDeptStatuses(editedShoot, t);
           const newDeptStatuses = (type_statuses || {})[t] || {};
           for (const d of Object.keys(oldDeptStatuses)) {
+            if (d === 'undefined') continue;
             if (oldDeptStatuses[d] && !(d in newDeptStatuses)) {
               await supabase.from('audit_log').insert({
                 shoot_id: editedShoot.id,

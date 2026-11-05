@@ -3,7 +3,7 @@ import { isAssigned, assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
 import { openDayDetail } from './calendar.js';
-import { getTypeStatus } from './shoot-status.js';
+import { getTypeStatus, getDeptStatuses } from './shoot-status.js';
 
 const container = () => document.getElementById('page-dashboard');
 let renderGen = 0;
@@ -35,8 +35,9 @@ export async function render() {
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
     Object.keys(ts).forEach(t => {
-      const st = getTypeStatus(s, t);
-      if (st === 'Shot' || st === 'edited') pendingItems++;
+      Object.values(getDeptStatuses(s, t)).forEach(st => {
+        if (st === 'Shot' || st === 'edited') pendingItems++;
+      });
     });
   });
   const posted   = shoots.filter(s => s.status === 'Posted');
@@ -44,7 +45,10 @@ export async function render() {
   shoots.forEach(s => {
     const ts = s.type_statuses || {};
     Object.keys(ts).forEach(t => {
-      if (getTypeStatus(s, t) === 'Posted' && t in postedByType) postedByType[t]++;
+      if (!(t in postedByType)) return;
+      Object.values(getDeptStatuses(s, t)).forEach(st => {
+        if (st === 'Posted') postedByType[t]++;
+      });
     });
   });
   const upcoming = shoots

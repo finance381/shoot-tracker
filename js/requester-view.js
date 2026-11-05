@@ -586,9 +586,7 @@ function renderDayPanel(panel, all, team) {
     ${shoots.map(s => {
       const ts = s.type_statuses || {};
       const types = Object.keys(ts).length > 0
-        ? Object.keys(ts).map(t => {
-            // Fall back to the rollup if this shoot doesn't actually list the
-            // requester's department (e.g. old data matched by venue only).
+        ? Object.keys(ts).filter(t => !myDept || getTypeStatus(s, t, myDept) !== undefined).map(t => {
             const st = (myDept && getTypeStatus(s, t, myDept)) || getTypeStatus(s, t);
             return `<span class="tag tag-type status-${st}">${t} <small style="opacity:.7">${st}</small></span>`;
           }).join('')

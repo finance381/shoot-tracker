@@ -96,16 +96,19 @@ export function classifyRows(shoots, byShoot) {
       // copy is still being edited, since Catering never gets uploaded.
       const relevantDepts = (s.departments || []).filter(d => YT_DEPTS.has(d));
       const videoStatus = rollupSalesVideo(s, relevantDepts);
+      if (videoStatus === undefined) return null;
       const onYouTube = !!rec?.posted_at;
       return { shoot: s, rec, videoStatus, onYouTube, ready: videoStatus === 'Posted' && !onYouTube };
-    });
+    })
+    // Sales Video applies only to non-YT depts: leave the shoot off the YT view.
+    .filter(Boolean);
 }
 
 function rollupSalesVideo(shoot, depts) {
   if (!depts.length) return getTypeStatus(shoot, SALES_VIDEO);
   const ORDER = ['Planned', 'Shot', 'edited', 'Posted'];
   const vals = depts.map(d => getTypeStatus(shoot, SALES_VIDEO, d)).filter(v => v != null);
-  if (!vals.length) return getTypeStatus(shoot, SALES_VIDEO);
+  if (!vals.length) return undefined;
   return ORDER[Math.min(...vals.map(v => ORDER.indexOf(v)))];
 }
 
