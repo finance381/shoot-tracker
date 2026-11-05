@@ -602,8 +602,6 @@ async function openAcceptModal(req, team) {
       if (match) {
         // Merge: add new types + departments into existing shoot
         const existingTypes = (match.type || '').split(',').map(t => t.trim()).filter(Boolean);
-        const mergedTypes = [...new Set([...existingTypes, ...types])].join(', ');
-
         const existingDepts = Array.isArray(match.departments) ? match.departments : [];
         const newDepts = Array.isArray(depts) ? depts : [];
         const mergedDepts = [...new Set([...existingDepts, ...newDepts])];
@@ -627,6 +625,13 @@ async function openAcceptModal(req, team) {
             }
           });
         });
+
+        // Drop any type whose cell set ended up empty (e.g. legacy CSV type with no
+        // type_statuses entry and the incoming request didn't add it either).
+        Object.keys(mergedTS).forEach(t => {
+          if (Object.keys(mergedTS[t]).length === 0) delete mergedTS[t];
+        });
+        const mergedTypes = Object.keys(mergedTS).join(', ');
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
         const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');

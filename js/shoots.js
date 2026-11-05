@@ -2,7 +2,7 @@ import { supabase } from './supabase.js';
 import { isAssigned, assigneeLabel } from './assignees.js';
 import { getMember } from './auth.js';
 import { withTimeout } from './app.js';
-import { STATUS_ORDER, STATUS_LABEL, STATUS_COLOR, getTypeStatus, getOverallStatus, setDeptStatus } from './shoot-status.js';
+import { STATUS_ORDER, STATUS_LABEL, STATUS_COLOR, getTypeStatus, getDeptStatuses, getOverallStatus, setDeptStatus } from './shoot-status.js';
 
 // filterSearch is user-typed and goes back into an attribute, so escape it.
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -177,17 +177,24 @@ export async function render() {
     if (filterType !== 'All') {
       const ts = s.type_statuses || {};
       if (!(filterType in ts)) return false;
-      const rolledUp = getTypeStatus(s, filterType);
-      if (!matchesStatusFilter(rolledUp)) return false;
+      const leaves = Object.values(getDeptStatuses(s, filterType));
+      if (leaves.length === 0) return false;
+      if (!leaves.some(matchesStatusFilter)) return false;
     } else if (filterStatus === '__not_posted') {
       // One not-yet-Posted deliverable is enough; the shoot's own status is a
       // rollup we would otherwise be relying on and we want the per-leaf truth.
       const ts = s.type_statuses || {};
-      const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
+      const tsKeys = Object.keys(ts);
+      const statuses = tsKeys.length > 0
+        ? tsKeys.flatMap(t => Object.values(getDeptStatuses(s, t)))
+        : [s.status];
       if (!statuses.some(isPending)) return false;
     } else if (filterStatus !== 'All') {
       const ts = s.type_statuses || {};
-      const statuses = Object.keys(ts).length > 0 ? Object.keys(ts).map(t => getTypeStatus(s, t)) : [s.status];
+      const tsKeys = Object.keys(ts);
+      const statuses = tsKeys.length > 0
+        ? tsKeys.flatMap(t => Object.values(getDeptStatuses(s, t)))
+        : [s.status];
       if (!statuses.includes(filterStatus)) return false;
     }
     if (filterVenues.length > 0) {
