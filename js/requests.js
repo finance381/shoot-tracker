@@ -378,6 +378,17 @@ async function openAcceptModal(req, team) {
         </div>
 
         <div class="form-group">
+          <label>Session</label>
+          <select id="acc-session">
+            <option value="">— Select session —</option>
+            <option value="Morning" ${req.session === 'Morning' ? 'selected' : ''}>Morning</option>
+            <option value="Lunch" ${req.session === 'Lunch' ? 'selected' : ''}>Lunch</option>
+            <option value="Sundowner" ${req.session === 'Sundowner' ? 'selected' : ''}>Sundowner</option>
+            <option value="Night" ${req.session === 'Night' ? 'selected' : ''}>Night</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label>Type of Shoot *</label>
           <div id="acc-type-checks" class="checkbox-group">
             ${shootTypes.map(t => `
@@ -556,6 +567,7 @@ async function openAcceptModal(req, team) {
   overlay.querySelector('#acc-confirm').addEventListener('click', async () => {
     const date = overlay.querySelector('#acc-date').value;
     const time = overlay.querySelector('#acc-time').value || null;
+    const session = overlay.querySelector('#acc-session').value || null;
     const assigneeId = overlay.querySelector('#acc-assignee').value;
     const client = overlay.querySelector('#acc-function').value.trim();
     const requested_by = overlay.querySelector('#acc-requested-by').value.trim();
@@ -649,7 +661,9 @@ async function openAcceptModal(req, team) {
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
         const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');
-        const mergedSession = match.session || req.session || null;
+        // Admin's pick in the Accept modal wins; otherwise keep the existing
+        // shoot's session, falling back to whatever the requester picked.
+        const mergedSession = session || match.session || req.session || null;
         const mergedTime = match.time && time ? (match.time < time ? match.time : time) : match.time || time;
 
         const { data: updated, error: upErr } = await supabase.from('shoots').update({
@@ -671,7 +685,7 @@ async function openAcceptModal(req, team) {
         // No match — create new shoot
         const { data: newShoot, error: shootErr } = await supabase.from('shoots').insert({
           date, time,
-          session: req.session || null,
+          session: session || req.session || null,
           type: typeStr,
           client,
           requested_by,
@@ -746,6 +760,7 @@ function openDetailModal(req, team) {
         </div>
         <div class="req-detail-row"><strong>Date</strong><span>${dateStr}</span></div>
         ${req.time ? `<div class="req-detail-row"><strong>Time</strong><span>${fmtTime(req.time)}</span></div>` : ''}
+        ${req.session ? `<div class="req-detail-row"><strong>Session</strong><span>${req.session}</span></div>` : ''}
         ${req.shoot_type ? `<div class="req-detail-row"><strong>Type</strong><span>${req.shoot_type.replace(/,/g, ', ')}</span></div>` : ''}
         ${req.function_name ? `<div class="req-detail-row"><strong>Function</strong><span>${req.function_name}</span></div>` : ''}
         ${req.department ? `<div class="req-detail-row"><strong>Department</strong><span class="req-detail-tags">${req.department.split(',').map(d => `<span class="tag tag-dept">${d.trim()}</span>`).join('')}</span></div>` : ''}
