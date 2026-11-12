@@ -153,6 +153,16 @@
         <input type="text" id="r-function" placeholder="e.g. Product launch, Wedding, Event">
       </div>
       <div class="form-group">
+        <label>Session *</label>
+        <select id="r-session">
+          <option value="">— Select session —</option>
+          <option value="Morning">Morning</option>
+          <option value="Lunch">Lunch</option>
+          <option value="Sundowner">Sundowner</option>
+          <option value="Night">Night</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Location</label>
         <select id="r-location">
           <option value="">Select location…</option>
@@ -180,6 +190,7 @@
     const date = document.getElementById('r-date').value;
     const time = document.getElementById('r-time').value || null;
     const func = document.getElementById('r-function').value.trim();
+    const session = document.getElementById('r-session').value;
     const location = document.getElementById('r-location').value;
     const notes = document.getElementById('r-notes').value.trim();
 
@@ -188,6 +199,7 @@
     if (!name) { showError('Please enter your name'); return; }
     if (!date) { showError('Please select a date'); return; }
     if (!func) { showError('Please describe the function / purpose'); return; }
+    if (!session) { showError('Please select a session'); return; }
 
     const btn = document.getElementById('r-submit');
     btn.disabled = true;
@@ -199,6 +211,7 @@
         date,
         time,
         function_name: func,
+        session,
         location,
         notes
       });

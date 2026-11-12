@@ -512,7 +512,9 @@ function renderDateGrouped(el, filtered, allShoots, me, lastChangeMap) {
 
   const dates = filterDateDir === 'past' ? pastDates
     : filterDateDir === 'upcoming' ? upcomingDates
-    : sortedDates.slice().reverse();
+    // "All" tab: nearest-future first, then recent-past — the top of the list
+    // is always the next thing on the calendar.
+    : [...upcomingDates, ...pastDates];
 
   if (dates.length === 0) {
     el.innerHTML = '<div class="empty-state"><div class="emoji">📸</div>No shoots found</div>';
@@ -656,7 +658,9 @@ function renderShootCard(s, me, lastChangeMap) {
         <div class="shoot-card-top">
           <div class="shoot-title-row">
             <span class="shoot-title">${s.client || 'No function'}</span>
+            ${s.date ? `<span class="shoot-meta-inline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${fmtCardDate(s.date)}</span>` : ''}
             ${s.time ? `<span class="shoot-meta-inline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${fmtTime(s.time)}</span>` : ''}
+            ${s.session ? `<span class="shoot-meta-inline" style="opacity:.75">· ${s.session}</span>` : ''}
             ${loc ? `<span class="shoot-meta-sep">|</span><span class="shoot-meta-inline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${loc}</span>` : ''}
           </div>
           <div class="shoot-card-right">
@@ -720,4 +724,10 @@ function fmtTime(t) {
   const [h, m] = t.split(':');
   const hr = parseInt(h);
   return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+}
+
+function fmtCardDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }

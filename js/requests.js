@@ -649,6 +649,7 @@ async function openAcceptModal(req, team) {
 
         const mergedNotes = [match.notes, notes].filter(Boolean).join(' | ');
         const mergedRequestedBy = [match.requested_by, requested_by].filter(Boolean).join(' | ');
+        const mergedSession = match.session || req.session || null;
         const mergedTime = match.time && time ? (match.time < time ? match.time : time) : match.time || time;
 
         const { data: updated, error: upErr } = await supabase.from('shoots').update({
@@ -657,7 +658,8 @@ async function openAcceptModal(req, team) {
           departments: mergedDepts,
           notes: mergedNotes,
           requested_by: mergedRequestedBy,
-          time: mergedTime
+          time: mergedTime,
+          session: mergedSession
         }).eq('id', match.id).select().single();
 
         if (upErr) throw upErr;
@@ -669,6 +671,7 @@ async function openAcceptModal(req, team) {
         // No match — create new shoot
         const { data: newShoot, error: shootErr } = await supabase.from('shoots').insert({
           date, time,
+          session: req.session || null,
           type: typeStr,
           client,
           requested_by,

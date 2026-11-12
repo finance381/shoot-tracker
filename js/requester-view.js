@@ -388,6 +388,16 @@ async function renderNewRequest(el, r) {
         <input type="text" id="rq-function" placeholder="e.g. Product launch, Wedding, Event">
       </div>
       <div class="req-form-group">
+        <label>Session *</label>
+        <select id="rq-session">
+          <option value="">— Select session —</option>
+          <option value="Morning">Morning</option>
+          <option value="Lunch">Lunch</option>
+          <option value="Sundowner">Sundowner</option>
+          <option value="Night">Night</option>
+        </select>
+      </div>
+      <div class="req-form-group">
         <label>Location</label>
         <select id="rq-location">
           <option value="">Select location…</option>
@@ -411,6 +421,7 @@ async function renderNewRequest(el, r) {
     const date = el.querySelector('#rq-date').value;
     const time = el.querySelector('#rq-time').value || null;
     const func = el.querySelector('#rq-function').value.trim();
+    const session = el.querySelector('#rq-session').value;
     const location = el.querySelector('#rq-location').value;
     const notes = el.querySelector('#rq-notes').value.trim();
     const errEl = el.querySelector('#rq-error');
@@ -421,6 +432,7 @@ async function renderNewRequest(el, r) {
     if (!name) { errEl.textContent = 'Please enter your name'; errEl.style.display = 'block'; return; }
     if (!date) { errEl.textContent = 'Please select a date'; errEl.style.display = 'block'; return; }
     if (!func) { errEl.textContent = 'Please describe the function / purpose'; errEl.style.display = 'block'; return; }
+    if (!session) { errEl.textContent = 'Please select a session'; errEl.style.display = 'block'; return; }
     if (!location) { errEl.textContent = 'Please select a location'; errEl.style.display = 'block'; return; }
 
     btn.disabled = true;
@@ -433,6 +445,7 @@ async function renderNewRequest(el, r) {
         date,
         time,
         function_name: func,
+        session,
         location,
         notes,
         department: r.type !== 'venue' ? r.display_name : ''
