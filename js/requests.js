@@ -513,17 +513,20 @@ async function openAcceptModal(req, team) {
     locSel.value = req.location;
   }
 
-  // Check for existing shoot on same date + location (merge candidate)
+  // Check for existing shoot on same date + location + session (merge candidate).
+  // Session is part of the match now so a Morning Haldi and a Night Wedding at
+  // the same venue on the same day stay as separate shoots.
   const mergeDate = overlay.querySelector('#acc-date').value;
   const mergeLoc = locSel.value;
+  const mergeSession = overlay.querySelector('#acc-session').value || null;
   if (mergeDate && mergeLoc && mergeLoc !== '__outdoor') {
     const { data: existing } = await supabase.from('shoots').select('*')
       .eq('date', mergeDate)
       .ilike('location', mergeLoc)
       .not('status', 'eq', 'Posted');
 
-    if (existing && existing.length > 0) {
-      const match = existing[0];
+    const match = (existing || []).find(s => (s.session || null) === mergeSession);
+    if (match) {
       const assignee = assigneeLabel(match, team, 'Unassigned');
       const banner = document.createElement('div');
       banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
@@ -546,8 +549,8 @@ async function openAcceptModal(req, team) {
         .ilike('outdoor_venue', outdoorVal)
         .not('status', 'eq', 'Posted');
 
-      if (existing && existing.length > 0) {
-        const match = existing[0];
+      const match = (existing || []).find(s => (s.session || null) === mergeSession);
+      if (match) {
         const assignee = assigneeLabel(match, team, 'Unassigned');
         const banner = document.createElement('div');
         banner.style.cssText = 'background:var(--cream);border:1px solid var(--accent);border-radius:12px;padding:12px;margin-bottom:12px;font-size:14px;';
@@ -612,7 +615,11 @@ async function openAcceptModal(req, team) {
       }
 
       const { data: existing } = await matchQuery;
-      const match = (existing || []).find(s => s.status !== 'Posted');
+      // Session is part of the match now, so a Morning Haldi and a Night
+      // Wedding at the same venue on the same day stay separate.
+      const match = (existing || []).find(s =>
+        s.status !== 'Posted' && (s.session || null) === (session || null)
+      );
 
       let shoot;
 
