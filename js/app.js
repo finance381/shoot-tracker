@@ -159,13 +159,12 @@ function showAuth() {
       try {
         const { phoneToEmail } = await import('./auth.js');
         const fakeEmail = phoneToEmail(phone);
-        const { data: member } = await supabase
-          .from('team_members')
-          .select('id')
-          .eq('email', fakeEmail)
-          .maybeSingle();
+        // Can't read team_members.email directly as anon — RLS column grants
+        // only expose (id, name, role, is_admin). Use the SECURITY DEFINER RPC
+        // that checks phone + derived-email internally and returns a bool.
+        const { data: exists } = await supabase.rpc('check_team_phone', { p_phone: phone });
 
-        if (!member) {
+        if (!exists) {
           errorEl.textContent = 'This phone number hasn\'t been added to the team yet. Ask your admin.';
           errorEl.classList.remove('hidden');
           newBtn.disabled = false;
